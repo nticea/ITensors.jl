@@ -1,3 +1,6 @@
+using Pkg; 
+Pkg.activate("././.")
+using Revise
 using ITensors
 
 import ITensors: op
@@ -7,6 +10,7 @@ function op(::OpName"expτSS", ::SiteType"S=1/2", s1::Index, s2::Index; τ)
     1 / 2 * op("S+", s1) * op("S-", s2) +
     1 / 2 * op("S-", s1) * op("S+", s2) +
     op("Sz", s1) * op("Sz", s2)
+  
   return exp(τ * h)
 end
 

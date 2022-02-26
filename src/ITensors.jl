@@ -138,6 +138,7 @@ include("physics/site_types/spinhalf.jl")
 include("physics/site_types/spinone.jl")
 include("physics/site_types/fermion.jl")
 include("physics/site_types/electron.jl")
+include("physics/site_types/hubbard_holstein.jl") # MINE 
 include("physics/site_types/tj.jl")
 include("physics/site_types/qudit.jl") # EXPERIMENTAL
 include("physics/site_types/boson.jl") # EXPERIMENTAL
