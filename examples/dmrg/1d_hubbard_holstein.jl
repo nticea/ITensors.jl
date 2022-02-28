@@ -182,17 +182,7 @@ function apply_onesite_operator(ϕ::MPS, opname::String, sites, siteidx::Int)
     return ψ
 end
 
-function compute_entropy(ψ::MPS, b)
-    # orthogonalize!(copy(ψ), s)
-    # _,S,_ = svd(ψ[s], (linkind(ψ, s-1), siteind(ψ,s)))
-    # S = S ./ sum(S.^2) # Normalize so that the sum squared of eigenvalues is 1
-    # SvN = 0.0
-    # for n=1:dim(S, 1)
-    #     p = S[n,n]
-    #     SvN -= p * log(p)
-    # end
-    # return SvN
-
+function compute_entropy(ψ::MPS, b::Int)
     orthogonalize!(ψ, b)
     U,S,V = svd(ψ[b], (linkind(ψ, b-1), siteind(ψ,b)))
     SvN = 0.0
@@ -205,10 +195,6 @@ end
 
 function compute_overlap(ψ1::MPS, ψ2::MPS)
     LinearAlgebra.norm(inner(ψ1, ψ2))
-end
-
-function compute_norm(ψ::MPS)
-    sqrt(inner(ψ,ψ))
 end
 
 function compute_phonon_number(ψ::MPS)
@@ -317,9 +303,9 @@ end
 N = 8
 t = 1 ## THIS TERM IS FINE
 U = 8
-ω = 0*t ## THIS TERM IS FINE (by itself)
-g0 = 0*t ## THIS TERM IS FINE (by itself)
-g1 = 0*g0 ## THIS TERM IS FINE (by itself)
+ω = 0.1*t ## THIS TERM IS FINE (by itself)
+g0 = 0.1*t ## THIS TERM IS FINE (by itself)
+g1 = 0.1*g0 ## THIS TERM IS FINE (by itself)
 
 # Simulation 
 T = 10
