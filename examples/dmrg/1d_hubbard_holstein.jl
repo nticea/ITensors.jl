@@ -182,13 +182,22 @@ function apply_onesite_operator(ϕ::MPS, opname::String, sites, siteidx::Int)
     return ψ
 end
 
-function compute_entropy(ψ::MPS, s)
-    orthogonalize!(copy(ψ), s)
-    _,S,_ = svd(ψ[s], (linkind(ψ, s-1), siteind(ψ,s)))
-    S = S ./ sum(S.^2) # Normalize so that the sum squared of eigenvalues is 1
+function compute_entropy(ψ::MPS, b)
+    # orthogonalize!(copy(ψ), s)
+    # _,S,_ = svd(ψ[s], (linkind(ψ, s-1), siteind(ψ,s)))
+    # S = S ./ sum(S.^2) # Normalize so that the sum squared of eigenvalues is 1
+    # SvN = 0.0
+    # for n=1:dim(S, 1)
+    #     p = S[n,n]
+    #     SvN -= p * log(p)
+    # end
+    # return SvN
+
+    orthogonalize!(ψ, b)
+    U,S,V = svd(ψ[b], (linkind(ψ, b-1), siteind(ψ,b)))
     SvN = 0.0
     for n=1:dim(S, 1)
-        p = S[n,n]
+        p = S[n,n]^2
         SvN -= p * log(p)
     end
     return SvN
@@ -196,6 +205,10 @@ end
 
 function compute_overlap(ψ1::MPS, ψ2::MPS)
     LinearAlgebra.norm(inner(ψ1, ψ2))
+end
+
+function compute_norm(ψ::MPS)
+    sqrt(inner(ψ,ψ))
 end
 
 function compute_phonon_number(ψ::MPS)
@@ -218,6 +231,7 @@ function compute_correlations(dmrg_results::DMRGResults, A_t0::String, A_t::Stri
     t = 0.0
     for step in 1:nsteps
         print(floor(Int,step),"-")
+        ## NOTE: SHOULD TRUNCATE AFTER APPLYING THE GATE ##
         ψ = apply(HH.gates, ψ; maxdim=p.TEBD_maxdim, cutoff=p.TEBD_cutoff) # evolve forward
         ϕ = apply(HH.gates, ϕ; maxdim=p.TEBD_maxdim, cutoff=p.TEBD_cutoff)
         t += p.τ 
@@ -300,7 +314,7 @@ end
 ## PARAMETERS ## 
 
 # Model 
-N = 80
+N = 8
 t = 1 ## THIS TERM IS FINE
 U = 8
 ω = 0*t ## THIS TERM IS FINE (by itself)
@@ -308,10 +322,10 @@ g0 = 0*t ## THIS TERM IS FINE (by itself)
 g1 = 0*g0 ## THIS TERM IS FINE (by itself)
 
 # Simulation 
-T = 5
+T = 10
 τ = 0.01
-DMRG_numsweeps = 40
-TEBD_maxdim = 800
+DMRG_numsweeps = 20
+TEBD_maxdim = 400
 TEBD_cutoff = 1E-14
 
 ## TODO: Modify number of phonons on each site from script 
