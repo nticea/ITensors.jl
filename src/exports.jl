@@ -258,6 +258,7 @@ export
   ⋅,
   correlation_matrix,
   expect,
+  compute_matrix_element,
   inner,
   isortho,
   linkdim,

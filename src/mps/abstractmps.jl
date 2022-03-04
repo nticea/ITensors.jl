@@ -1757,7 +1757,7 @@ function product(
   # distance to orthogonalization.
   # For example, if ITensors.orthocenter(ψ) > ns[end],
   # set to ns[end].
-  ψ = orthogonalize(ψ, ns[1])
+  ψ = orthogonalize(ψ, ns[1]) # Orthogonalize the MPS around the site where we are applying the first of the operators
   diff_ns = diff(ns)
   ns′ = ns
   if any(!=(1), diff_ns)
@@ -1882,6 +1882,24 @@ function product(
   end
   return Aψ
 end
+
+# ## IN PROGRESS ##
+# function apply_pair(
+#   As::Vector{<:ITensor}, ψ_targ::AbstractMPS, ψ_other::AbstractMPS; move_sites_back::Bool=true, kwargs...
+# )
+# ## NOTE: SHOULD TRUNCATE TO THE SAME SUBSPACE ?? ##
+#         # Apply gates to ϕ
+#         # 1. Construct projector matrix out of the states that are kept 
+#         # --> is this equivalent to taking all nonzero entries in ϕ and setting them to zero, then 
+#         #     constructing a projector (projector(x::MPS; <keyword argument>) -> MPO) out of this state?  
+#         # 2. Apply gates to ψ with no truncation
+#         # 3. Apply the truncation 
+#   # Begin by applying the gates to the target wavefunction 
+#   ψ_targ_result =  apply(As, ψ_targ, kwargs...)
+#   # Convert all non-zero coefs to 1 
+#   @show ψ_targ_result
+#   @assert 1==0
+# end
 
 #
 # QN functions

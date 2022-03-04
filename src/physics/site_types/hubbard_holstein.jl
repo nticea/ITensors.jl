@@ -27,7 +27,6 @@ function ITensors.space(
   qnname_nfparity="NfParity",
 )
   if conserve_sz && conserve_nf
-    println("Conserving Sz and Nf")
     return [
       QN((qnname_nf, 0, -1), (qnname_sz, 0)) => 1 * PHONON_DOF 
       QN((qnname_nf, 1, -1), (qnname_sz, +1)) => 1 * PHONON_DOF

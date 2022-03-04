@@ -4,6 +4,7 @@ using Revise
 using ITensors
 using SciPy: fft
 using Plots
+using NPZ
 
 ## FUNCTIONS ##
 
@@ -117,7 +118,6 @@ function HubbardHolsteinModel(p::Parameters)
     ampo += U,"Nupdn",N
     ampo += ω,"Nb",N
     ampo += g0,"Ntot(Bd+B)",N
-    
     H = MPO(ampo,sites)
 
     # make the trotter gates 
@@ -142,15 +142,14 @@ function HubbardHolsteinModel(p::Parameters)
         push!(gates,Gj_twosite)
         push!(gates,Gj_onesite)
     end
-
     # End site 
     hn = U*op("Nupdn",sites[N]) 
         + ω*op("Nb",sites[N]) 
         + g0*op("Ntot(Bd+B)",sites[N])
     Gn = exp(-1.0im * τ/2 * hn)
     push!(gates,Gn)
-
     append!(gates,reverse(gates))
+
     HubbardHolsteinModel(sites, H, gates)
 end
 
@@ -175,11 +174,14 @@ function run_DMRG(HH::HubbardHolsteinModel, p::Parameters)
 end
 
 function apply_onesite_operator(ϕ::MPS, opname::String, sites, siteidx::Int)
-    ψ = copy(ϕ) # Make a copy of the original state
-    new_ψj = op(opname,sites[siteidx]) * ψ[siteidx] # Apply the local operator
-    noprime!(new_ψj) 
-    ψ[siteidx] = new_ψj
-    return ψ
+    op_j = op(opname,sites[siteidx])
+    ϕ = copy(ϕ) # Make a copy of the original state
+
+    orthogonalize!(ϕ, siteidx)
+    new_ϕj = op_j * ϕ[siteidx] # Apply the local operator
+    noprime!(new_ϕj) 
+    ϕ[siteidx] = new_ϕj
+    return ϕ
 end
 
 function compute_entropy(ψ::MPS, b::Int)
@@ -207,6 +209,21 @@ function compute_correlations(dmrg_results::DMRGResults, A_t0::String, A_t::Stri
     entropy = []
     self_overlap = []
     phonon_flux = []
+
+    # Account for fermionic operators 
+    fermionic_t0 = has_fermion_string(A_t0, HH.sites[1])
+    fermionic_t = has_fermion_string(A_t, HH.sites[1])
+    if fermionic_t0 != fermionic_t
+        error(
+        "compute_correlations: Mixed fermionic and bosonic operators are not supported yet."
+        )
+    end
+    if fermionic_t0
+        A_t0 = "$A_t0*F"
+    end
+    if fermionic_t
+        A_t = "$A_t*F"
+    end
     
     # Apply A_t0 to middle site
     ϕ = copy(dmrg_results.ground_state)
@@ -217,9 +234,9 @@ function compute_correlations(dmrg_results::DMRGResults, A_t0::String, A_t::Stri
     t = 0.0
     for step in 1:nsteps
         print(floor(Int,step),"-")
-        ## NOTE: SHOULD TRUNCATE AFTER APPLYING THE GATE ##
-        ψ = apply(HH.gates, ψ; maxdim=p.TEBD_maxdim, cutoff=p.TEBD_cutoff) # evolve forward
         ϕ = apply(HH.gates, ϕ; maxdim=p.TEBD_maxdim, cutoff=p.TEBD_cutoff)
+        ψ = apply(HH.gates, ψ; maxdim=p.TEBD_maxdim, cutoff=p.TEBD_cutoff) # evolve forward
+
         t += p.τ 
 
         ### SANITY CHECKS
@@ -238,10 +255,11 @@ function compute_correlations(dmrg_results::DMRGResults, A_t0::String, A_t::Stri
             println("Phonon flux ψ: ", sum(phonon_flux[end][2])/p.N)
         end
 
+        # Calculate ⟨ϕ(t)|c_j^† c_i|ϕ(0)⟩
         function measure_corr(j::Int)
             # Apply the second measurement operator
-            ϕ_At = apply_onesite_operator(ϕ, A_t, HH.sites, j)
-            return inner(ϕ_At, ψ)  
+            ϕA_t = apply_onesite_operator(ϕ, A_t, HH.sites, j)
+            return inner(ϕA_t, ψ)
         end
 
         # Measure the correlation fcn 
@@ -275,6 +293,7 @@ function plot_spectral_function(tebd_results::TEBDResults, p::Parameters; lims=n
     qs = range(-π, stop=π, length=p.N+2)[2:end-1]
     maxval = maximum(abs.(ff))
     heatmap(qs, ωs, abs.(ff), c=:bwr, clims=(-maxval, maxval))
+    #plot(qs, ωs[floor(Int,length(ωs[1,:]/2)),:])
 end
 
 function plot_entropy(tebd_results::TEBDResults)
@@ -285,6 +304,17 @@ function plot_entropy(tebd_results::TEBDResults)
     plot!(1:niters, ψ_entropy, label="ψ(t)")
     title!("Von Neumann Entropy")
     xlabel!("Iteration")
+end
+
+function compare_to_ED(tebd_results::TEBDResults, p::Parameters)
+    @assert p.τ == 0.01 # Time scale of the ED results
+    corrs = tebd_results.corrs
+    ED_corrs = npzread("/Users/nicole/Dropbox/Grad school/Devereaux lab/ITensors.jl/examples/dmrg/ed.npy")
+    numsteps = size(corrs)[2]
+    plot(1:numsteps, real.(corrs[4,:]), label="DMRG real part")
+    plot!(1:numsteps, real.(ED_corrs[1:numsteps]), label="ED real part")
+    plot!(1:numsteps, imag.(corrs[4,:]), label="DMRG complex part")
+    plot!(1:numsteps, imag.(ED_corrs[1:numsteps]), label="ED complex part")
 end
 
 function plot_phonon_flux(tebd_results::TEBDResults)
@@ -303,9 +333,9 @@ end
 N = 8
 t = 1 ## THIS TERM IS FINE
 U = 8
-ω = 0.1*t ## THIS TERM IS FINE (by itself)
-g0 = 0.1*t ## THIS TERM IS FINE (by itself)
-g1 = 0.1*g0 ## THIS TERM IS FINE (by itself)
+ω = 0*t ## THIS TERM IS FINE (by itself)
+g0 = 0*t ## THIS TERM IS FINE (by itself)
+g1 = 0*g0 ## THIS TERM IS FINE (by itself)
 
 # Simulation 
 T = 10
@@ -337,5 +367,6 @@ dmrg_results = run_DMRG(hubbholst, params)
 # Compute correlation functions 
 println("Computing correlation functions...")
 tebd_results = compute_correlations(dmrg_results, A_t0, A_t, hubbholst, params)
+compare_to_ED(tebd_results,params)
 
 # Plotting spectral function

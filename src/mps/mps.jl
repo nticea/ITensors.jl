@@ -778,6 +778,42 @@ function expect(psi::MPS, ops::AbstractString...; kwargs...)
   end
 end
 
+function compute_matrix_element(bra::MPS, ket::MPS, opsname::AbstractString, siteidx::Int)
+  siteidx = 4
+  bra = dag(copy(bra))
+  ket = copy(ket)
+  N = length(bra)
+  sites = siteinds(bra)
+  op_j = op(opsname, sites[siteidx])
+
+  # M = ket[1]*bra[1]
+  # for n in 2:N
+  #   M *= ket[n]
+  #   if n == siteidx
+  #     orthogonalize!(bra, siteidx)
+  #     new_site = op_j * bra[siteidx] # Apply the local operator
+  #     noprime!(new_site) 
+  #     M *= new_site
+  #   else
+  #     M *= bra[n]
+  #   end
+  # end
+  # return data(M)
+
+  M = ket[1]*bra[1]
+  for n in 2:N
+    M *= ket[n]
+    if n == siteidx
+      prod = dag(op_j) * prime(bra[n], "Site")
+      M *= prod
+    else
+      M *= bra[n]
+    end
+  end
+  return -data(M)[1]
+
+end
+
 function HDF5.write(parent::Union{HDF5.File,HDF5.Group}, name::AbstractString, M::MPS)
   g = create_group(parent, name)
   attributes(g)["type"] = "MPS"
