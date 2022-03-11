@@ -77,7 +77,7 @@ function parameters(;N::Int, t::Real, U::Real=nothing, ω::Real=nothing,
     end
 
     if isnothing(DMRG_cutoff)
-        DMRG_cutoff = 1E-14
+        DMRG_cutoff = 1E-10
     end
     setnoise!(sweeps, DMRG_noise...) # Very important to use noise for this model
     setmaxdim!(sweeps, DMRG_maxdim...)
@@ -165,20 +165,47 @@ function initialize_wavefcn(HH::HubbardHolsteinModel, p::Parameters)
     productMPS(HH.sites,state) 
 end
 
-function run_DMRG(HH::HubbardHolsteinModel, p::Parameters)
+function run_DMRG(HH::HubbardHolsteinModel, p::Parameters; alg="divide_and_conquer")
     ϕ0 = initialize_wavefcn(HH,p)
     @show flux(ϕ0)
-    energy, ϕ = dmrg(HH.mpo, ϕ0, p.sweeps)
+    energy, ϕ = dmrg(HH.mpo, ϕ0, p.sweeps, alg=alg)
     entropy = compute_entropy(ϕ, p.mid)
     return DMRGResults(ϕ, energy, entropy)
 end
 
+""" 
+    function apply_onesite_operator(ϕ::MPS, opname::String, sites, siteidx::Int)
+This is a wrapper function for the apply_op function, which actually applies the operator
+Here, we just account for fermionic strings 
+"""
 function apply_onesite_operator(ϕ::MPS, opname::String, sites, siteidx::Int)
-    op_j = op(opname,sites[siteidx])
+    ϕ = copy(ϕ) 
+
+    ## Account for fermion sign using Jordan-Wigner strings ##
+    if opname == "Cup" || opname == "Cdn"
+        ϕ = apply_op(ϕ, opname, sites, siteidx)
+        for i in reverse(1:(siteidx-1)) # Don't act with string on-site
+            ϕ = apply_op(ϕ, "F", sites, i)
+        end
+        return ϕ
+    elseif opname == "Cdagup" || opname == "Cdagdn"
+        for i in 1:(siteidx-1) # Don't act with string on-site
+            ϕ = apply_op(ϕ, "F", sites, i)
+        end
+        ϕ = apply_op(ϕ, opname, sites, siteidx)
+        return ϕ
+    end
+    println("No Jordan-Wigner strings")
+
+    # Otherwise, just apply the operator as usual
+    return apply_op(ϕ, opname, sites, siteidx)
+end
+
+function apply_op(ϕ::MPS, opname::String, sites, siteidx::Int)
     ϕ = copy(ϕ) # Make a copy of the original state
 
     orthogonalize!(ϕ, siteidx)
-    new_ϕj = op_j * ϕ[siteidx] # Apply the local operator
+    new_ϕj = op(opname,sites[siteidx]) * ϕ[siteidx] # Apply the local operator
     noprime!(new_ϕj) 
     ϕ[siteidx] = new_ϕj
     return ϕ
@@ -210,24 +237,16 @@ function compute_correlations(dmrg_results::DMRGResults, A_t0::String, A_t::Stri
     self_overlap = []
     phonon_flux = []
 
-    # Account for fermionic operators 
-    fermionic_t0 = has_fermion_string(A_t0, HH.sites[1])
-    fermionic_t = has_fermion_string(A_t, HH.sites[1])
-    if fermionic_t0 != fermionic_t
-        error(
-        "compute_correlations: Mixed fermionic and bosonic operators are not supported yet."
-        )
-    end
-    if fermionic_t0
-        A_t0 = "$A_t0*F"
-    end
-    if fermionic_t
-        A_t = "$A_t*F"
-    end
+    # The wavefunction being acted upon at t=0, |ψ⟩ = A_t0|ϕ⟩
+    ϕ = copy(dmrg_results.ground_state)
+    ψ = copy(ϕ)
     
     # Apply A_t0 to middle site
-    ϕ = copy(dmrg_results.ground_state)
-    ψ = apply_onesite_operator(ϕ, A_t0, HH.sites, p.mid)
+    ψ = apply_onesite_operator(ψ, A_t0, HH.sites, p.mid)
+
+    # Measure correlation before time evolution
+    A_tψ = apply_onesite_operator(ψ, A_t, HH.sites, p.mid)
+    @show dot(ϕ,A_tψ)
 
     # Parameters for time evolution
     nsteps = floor(p.T/p.τ) # Number of time steps for time evolution
@@ -258,8 +277,8 @@ function compute_correlations(dmrg_results::DMRGResults, A_t0::String, A_t::Stri
         # Calculate ⟨ϕ(t)|c_j^† c_i|ϕ(0)⟩
         function measure_corr(j::Int)
             # Apply the second measurement operator
-            ϕA_t = apply_onesite_operator(ϕ, A_t, HH.sites, j)
-            return inner(ϕA_t, ψ)
+            A_tψ = apply_onesite_operator(ψ, A_t, HH.sites, j)
+            return dot(ϕ,A_tψ)
         end
 
         # Measure the correlation fcn 
@@ -311,9 +330,9 @@ function compare_to_ED(tebd_results::TEBDResults, p::Parameters)
     corrs = tebd_results.corrs
     ED_corrs = npzread("/Users/nicole/Dropbox/Grad school/Devereaux lab/ITensors.jl/examples/dmrg/ed.npy")
     numsteps = size(corrs)[2]
-    plot(1:numsteps, real.(corrs[4,:]), label="DMRG real part")
+    plot(1:numsteps, -real.(corrs[4,:]), label="DMRG real part")
     plot!(1:numsteps, real.(ED_corrs[1:numsteps]), label="ED real part")
-    plot!(1:numsteps, imag.(corrs[4,:]), label="DMRG complex part")
+    plot!(1:numsteps, -imag.(corrs[4,:]), label="DMRG complex part")
     plot!(1:numsteps, imag.(ED_corrs[1:numsteps]), label="ED complex part")
 end
 
@@ -338,11 +357,12 @@ g0 = 0*t ## THIS TERM IS FINE (by itself)
 g1 = 0*g0 ## THIS TERM IS FINE (by itself)
 
 # Simulation 
-T = 10
+T = 1
 τ = 0.01
 DMRG_numsweeps = 20
+DMRG_maxdim = 800
 TEBD_maxdim = 400
-TEBD_cutoff = 1E-14
+TEBD_cutoff = 1E-10
 
 ## TODO: Modify number of phonons on each site from script 
 ## TODO: Confirm that it's okay to overwrite the operators in the hubbardholstein.jl sites file
@@ -350,18 +370,19 @@ TEBD_cutoff = 1E-14
 
 # Specify operators of interest
 A_t0 = "Cup"
-A_t = "Cup"
+A_t = "Cdagup"
 
 # Initialize 
 println("Initializing...")
 params = parameters(N=N, t=t, U=U, ω=ω, g0=g0, g1=g1, 
-                    DMRG_numsweeps=DMRG_numsweeps, 
+                    DMRG_numsweeps=DMRG_numsweeps,
+                    DMRG_maxdim=DMRG_maxdim, 
                     T=T, τ=τ, TEBD_cutoff=TEBD_cutoff)
 hubbholst = HubbardHolsteinModel(params)
 
 # Run DMRG
 println("Finding ground state...")
-dmrg_results = run_DMRG(hubbholst, params)
+dmrg_results = run_DMRG(hubbholst, params, alg="divide_and_conquer")
 @show compute_phonon_number(dmrg_results.ground_state)
 
 # Compute correlation functions 

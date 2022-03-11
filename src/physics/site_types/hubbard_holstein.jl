@@ -275,7 +275,7 @@ function ITensors.op(::OpName"F", ::SiteType"HubHolst")
 end
 
 function ITensors.op(::OpName"Fup", ::SiteType"HubHolst")
-  Fup = return [
+  Fup = [
     1.0 0.0 0.0 0.0
     0.0 -1.0 0.0 0.0
     0.0 0.0 1.0 0.0
