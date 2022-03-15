@@ -100,6 +100,8 @@ alias(::OpName"c↑") = OpName("Cup")
 alias(::OpName"c↓") = OpName("Cdn")
 alias(::OpName"c†↑") = OpName("Cdagup")
 alias(::OpName"c†↓") = OpName("Cdagdn")
+alias(::OpName"c↑↓") = OpName("Cupdn")
+alias(::OpName"c†↑↓") = OpName("Cdagupdn")
 alias(::OpName"n↑") = OpName("Nup")
 alias(::OpName"n↓") = OpName("Ndn")
 alias(::OpName"n↑↓") = OpName("Nupdn")
@@ -195,6 +197,32 @@ function ITensors.op(::OpName"Cdn", ::SiteType"HubHolst")
   return kron(Cdn, Matrix(I, PHONON_DOF, PHONON_DOF))
 end
 function ITensors.op(on::OpName"c↓", st::SiteType"HubHolst")
+  return op(alias(on), st)
+end
+
+function ITensors.op(::OpName"Cupdn", ::SiteType"HubHolst")
+  Cupdn = [
+    0.0  0.0  0.0  -1.0
+    0.0  0.0  0.0   0.0
+    0.0  0.0  0.0   0.0
+    0.0  0.0  0.0   0.0
+  ]
+  return kron(Cupdn, Matrix(I, PHONON_DOF, PHONON_DOF))
+end
+function ITensors.op(on::OpName"c↑↓", st::SiteType"HubHolst")
+  return op(alias(on), st)
+end
+
+function ITensors.op(::OpName"Cdagupdn", ::SiteType"HubHolst")
+  Cdagupdn = [
+    0.0  0.0  0.0  -1.0
+    0.0  0.0  0.0   0.0
+    0.0  0.0  0.0   0.0
+    0.0  0.0  0.0   0.0
+  ]
+  return kron(Cdagupdn, Matrix(I, PHONON_DOF, PHONON_DOF))
+end
+function ITensors.op(on::OpName"c†↑↓", st::SiteType"HubHolst")
   return op(alias(on), st)
 end
 
