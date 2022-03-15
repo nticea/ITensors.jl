@@ -1,8 +1,8 @@
 using Pkg; 
 Pkg.activate("././.")
-using ITensors
+# using ITensors
 # using SciPy: fft
-# using Plots
+using Plots
 # using NPZ
 # using JLD
 
