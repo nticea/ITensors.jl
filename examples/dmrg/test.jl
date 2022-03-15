@@ -1,9 +1,9 @@
 using Pkg; 
-Pkg.activate("/Users/nicole/Dropbox/Grad school/Devereaux lab/ITensors.jl/Project.toml")
+Pkg.activate(".")
 using ITensors
 # using SciPy: fft
 # using Plots
 # using NPZ
-# using JLDå
+# using JLD
 
 println("Hello, world!")
