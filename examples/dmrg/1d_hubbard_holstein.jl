@@ -5,6 +5,7 @@ using ITensors
 using SciPy: fft
 using Plots
 using NPZ
+using JLD
 
 ## FUNCTIONS ##
 
@@ -368,7 +369,6 @@ function plot_spectral_function(tebd_results::TEBDResults, p::Parameters; lims=n
     qs = range(-π, stop=π, length=p.N+2)[2:end-1]
     maxval = maximum(abs.(ff))
     heatmap(qs, ωs, abs.(ff), c=:bwr, clims=(-maxval, maxval))
-    #plot(qs, ωs[floor(Int,length(ωs[1,:]/2)),:])
 end
 
 function plot_entropy(tebd_results::TEBDResults)
@@ -400,8 +400,18 @@ function plot_overlap(tebd_results::TEBDResults)
     plot(1:length(tebd_results.self_overlap), tebd_results.self_overlap)
 end
 
-function plot_equilibrium_correlations(corrs)
-
+function save_structs(struc, path::String)
+    function Name(arg)
+        string(arg)
+    end
+    fnames = fieldnames(typeof(struc))
+    for fn in fnames 
+        n = Name(fn)
+        d = getfield(struc, fn)
+        jldopen(path, "w") do file
+            write(file, n, d) 
+        end
+    end
 end
 
 ## CODE ##
@@ -409,7 +419,7 @@ end
 ## PARAMETERS ## 
 
 # Model 
-N = 80
+N = 8
 t = 1 ## THIS TERM IS FINE
 U = 8
 ω = 0*t ## THIS TERM IS FINE (by itself)
@@ -417,17 +427,18 @@ g0 = 0*t ## THIS TERM IS FINE (by itself)
 g1 = 0*g0 ## THIS TERM IS FINE (by itself)
 
 # Simulation 
-T = 40
-τ = 0.05
+T = 10#40
+τ = 0.01#0.05
 DMRG_numsweeps = 40
 DMRG_maxdim = 600
 TEBD_maxdim = 800
 TEBD_cutoff = 1E-14
 DMRG_cutoff = 1E-14
 
+# Saveout info 
+save_path = "/Users/nicole/Dropbox/Grad school/Devereaux lab/ITensors.jl/examples/dmrg/results/1dhubbholst_output.jld"
+
 ## TODO: Modify number of phonons on each site from script 
-## TODO: Confirm that it's okay to overwrite the operators in the hubbardholstein.jl sites file
-## TODO: How many phonons should we initially add to each site? 
 
 # Specify operators of interest
 A_t0 = "Cup"
@@ -440,21 +451,14 @@ params = parameters(N=N, t=t, U=U, ω=ω, g0=g0, g1=g1,
                     DMRG_maxdim=DMRG_maxdim, DMRG_cutoff=DMRG_cutoff,
                     T=T, τ=τ, TEBD_cutoff=TEBD_cutoff)
 hubbholst = HubbardHolsteinModel(params)
+save_structs(params, save_path)
 
 # Run DMRG
 println("Finding ground state...")
 dmrg_results = run_DMRG(hubbholst, params, alg="divide_and_conquer")
-@show compute_phonon_number(dmrg_results.ground_state)
+save_structs(dmrg_results, save_path)
 
 # Compute correlation functions 
 println("Computing correlation functions...")
 tebd_results = compute_correlations(dmrg_results, A_t0, A_t, hubbholst, params)
-# TODO: Figure out how to save 
-
-#compare_to_ED(tebd_results,params)
-# Plotting spectral function
-
-# Compute equilibrium correlations
-#corrtype = "charge"
-#println("Computing equilibrium correlations")
-#corrs = equilibrium_correlations(dmrg_results, corrtype, hubbholst, params)
+save_structs(tebd_results, save_path)
