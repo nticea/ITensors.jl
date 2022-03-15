@@ -436,7 +436,8 @@ TEBD_cutoff = 1E-14
 DMRG_cutoff = 1E-14
 
 # Saveout info 
-save_path = "/Users/nicole/Dropbox/Grad school/Devereaux lab/ITensors.jl/examples/dmrg/results/1dhubbholst_output.jld"
+#save_path = "/Users/nicole/Dropbox/Grad school/Devereaux lab/ITensors.jl/examples/dmrg/results/1dhubbholst_output.jld"
+save_path = "/home/users/nticea/ITensors.jl/examples/dmrg/results/1dhubbholst_output.jld"
 
 ## TODO: Modify number of phonons on each site from script 
 
