@@ -419,7 +419,7 @@ end
 ## PARAMETERS ## 
 
 # Model 
-N = 8
+N = 80
 t = 1 ## THIS TERM IS FINE
 U = 8
 ω = 0*t ## THIS TERM IS FINE (by itself)
@@ -427,7 +427,7 @@ g0 = 0*t ## THIS TERM IS FINE (by itself)
 g1 = 0*g0 ## THIS TERM IS FINE (by itself)
 
 # Simulation 
-T = 10#40
+T = 0#40
 τ = 0.01#0.05
 DMRG_numsweeps = 40
 DMRG_maxdim = 600
