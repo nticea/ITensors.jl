@@ -436,6 +436,7 @@ TEBD_cutoff = 1E-14
 DMRG_cutoff = 1E-14
 
 # Saveout info 
+DO_SAVE = false
 #save_path = "/Users/nicole/Dropbox/Grad school/Devereaux lab/ITensors.jl/examples/dmrg/results/1dhubbholst_output.jld"
 save_path = "/home/users/nticea/ITensors.jl/examples/dmrg/results/1dhubbholst_output.jld"
 
@@ -452,14 +453,20 @@ params = parameters(N=N, t=t, U=U, ω=ω, g0=g0, g1=g1,
                     DMRG_maxdim=DMRG_maxdim, DMRG_cutoff=DMRG_cutoff,
                     T=T, τ=τ, TEBD_cutoff=TEBD_cutoff)
 hubbholst = HubbardHolsteinModel(params)
-save_structs(params, save_path)
+if DO_SAVE
+    save_structs(params, save_path)
+end
 
 # Run DMRG
 println("Finding ground state...")
 dmrg_results = run_DMRG(hubbholst, params, alg="divide_and_conquer")
-save_structs(dmrg_results, save_path)
+if DO_SAVE
+    save_structs(dmrg_results, save_path)
+end
 
 # Compute correlation functions 
 println("Computing correlation functions...")
 tebd_results = compute_correlations(dmrg_results, A_t0, A_t, hubbholst, params)
-save_structs(tebd_results, save_path)
+if DO_SAVE
+    save_structs(tebd_results, save_path)
+end
