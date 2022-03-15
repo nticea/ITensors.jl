@@ -1,6 +1,5 @@
 using Pkg; 
 Pkg.activate("././.")
-using Revise
 using ITensors
 using SciPy: fft
 using Plots
