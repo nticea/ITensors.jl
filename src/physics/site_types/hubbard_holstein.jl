@@ -215,10 +215,10 @@ end
 
 function ITensors.op(::OpName"Cdagupdn", ::SiteType"HubHolst")
   Cdagupdn = [
-    0.0  0.0  0.0  -1.0
     0.0  0.0  0.0   0.0
     0.0  0.0  0.0   0.0
     0.0  0.0  0.0   0.0
+   -1.0  0.0  0.0   0.0
   ]
   return kron(Cdagupdn, Matrix(I, PHONON_DOF, PHONON_DOF))
 end

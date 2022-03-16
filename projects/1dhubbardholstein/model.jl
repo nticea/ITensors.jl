@@ -1,13 +1,6 @@
-using Revise
-using Pkg
-Pkg.activate("././.")
 using ITensors
-using SciPy: fft
-using Plots
-using NPZ
-using JLD
 
-## FUNCTIONS ##
+## STRUCTS ##
 
 struct Parameters
     # Model parameters
@@ -50,6 +43,8 @@ struct TEBDResults
     phonon_flux
     corrs 
 end
+
+## SETTING UP THE MODEL ## 
 
 function parameters(;N::Int, t::Real, U::Real=nothing, ω::Real=nothing, 
                     g0::Real=nothing, g1::Real=nothing, doping::Real=0, 
@@ -154,6 +149,33 @@ function HubbardHolsteinModel(p::Parameters)
     HubbardHolsteinModel(sites, H, gates)
 end
 
+## GENERIC STATE FUNCTIONS ##
+
+function compute_overlap(ψ1::MPS, ψ2::MPS)
+    LinearAlgebra.norm(inner(ψ1, ψ2))
+end
+
+function compute_phonon_number(ψ::MPS)
+    expect(ψ,"Nb")
+end
+
+function compute_electron_number(ψ::MPS)
+    expect(ψ,"Ntot")
+end
+
+function compute_entropy(ψ::MPS, b::Int)
+    orthogonalize!(ψ, b)
+    U,S,V = svd(ψ[b], (linkind(ψ, b-1), siteind(ψ,b)))
+    SvN = 0.0
+    for n=1:dim(S, 1)
+        p = S[n,n]^2
+        SvN -= p * log(p)
+    end
+    return SvN
+end
+
+## DMRG ## 
+
 function initialize_wavefcn(HH::HubbardHolsteinModel, p::Parameters)
     state = [isodd(n) ? "Up,0" : "Dn,0" for n=1:p.N] # NOTE: the QN of this state is preserved through DMRG
 
@@ -174,11 +196,8 @@ function run_DMRG(HH::HubbardHolsteinModel, p::Parameters; alg="divide_and_conqu
     return DMRGResults(ϕ, energy, entropy)
 end
 
-""" 
-    function apply_onesite_operator(ϕ::MPS, opname::String, sites, siteidx::Int)
-This is a wrapper function for the apply_op function, which actually applies the operator
-Here, we just account for fermionic strings 
-"""
+## CORRELATION FUNCTIONS ## 
+
 function apply_onesite_operator(ϕ::MPS, opname::String, sites, siteidx::Int)
     ϕ = copy(ϕ) 
 
@@ -243,6 +262,15 @@ function apply_twosite_operator(ϕ::MPS, opname::String, sites, siteidx::Int)
     @error "No recognized two-site operator"
 end
 
+function apply_op(ϕ::MPS, op::ITensor, siteidx::Int)
+    ϕ = copy(ϕ) # Make a copy of the original state
+    orthogonalize!(ϕ, siteidx)
+    new_ϕj = op * ϕ[siteidx] # Apply the local operator
+    noprime!(new_ϕj) 
+    ϕ[siteidx] = new_ϕj
+    return ϕ
+end
+
 function apply_op_twosite(ϕ::MPS, G::ITensor, siteidx::Int; cutoff=1E-8)
     ϕ = copy(ϕ)
     # Note: siteidx corresponds to the leftermost site
@@ -255,34 +283,6 @@ function apply_op_twosite(ϕ::MPS, G::ITensor, siteidx::Int; cutoff=1E-8)
     ϕ[siteidx] = U
     ϕ[siteidx+1] = S*V
     return ϕ
-end
-
-function apply_op(ϕ::MPS, op::ITensor, siteidx::Int)
-    ϕ = copy(ϕ) # Make a copy of the original state
-    orthogonalize!(ϕ, siteidx)
-    new_ϕj = op * ϕ[siteidx] # Apply the local operator
-    noprime!(new_ϕj) 
-    ϕ[siteidx] = new_ϕj
-    return ϕ
-end
-
-function compute_entropy(ψ::MPS, b::Int)
-    orthogonalize!(ψ, b)
-    U,S,V = svd(ψ[b], (linkind(ψ, b-1), siteind(ψ,b)))
-    SvN = 0.0
-    for n=1:dim(S, 1)
-        p = S[n,n]^2
-        SvN -= p * log(p)
-    end
-    return SvN
-end
-
-function compute_overlap(ψ1::MPS, ψ2::MPS)
-    LinearAlgebra.norm(inner(ψ1, ψ2))
-end
-
-function compute_phonon_number(ψ::MPS)
-    expect(ψ,"Nb")
 end
 
 function equilibrium_correlations(dmrg_results::DMRGResults, corrtype::String, 
@@ -324,35 +324,9 @@ function equilibrium_correlations(dmrg_results::DMRGResults, corrtype::String,
     @error "Unknown spin correlation type"
 end
 
-function plot_density(dmrg_results::DMRGResults)
-    n = expect(dmrg_results.ground_state, "Ntot")
-    plot(1:length(n), n)
-    ylims!((0.2,1.2))
-    ylabel!("⟨n⟩")
-    xlabel!("Site")
-    title!("Electron density")
-end
-
-function plot_equilibrium_correlations(dmrg_results::DMRGResults, corrtype::String, 
-                                        HH::HubbardHolsteinModel, p::Parameters;
-                                        start=nothing, stop=nothing)
-
-    if isnothing(start)
-        start = floor(Int, p.N/4)
-    end
-    if isnothing(stop)
-        stop = ceil(Int, p.N/4*3)
-    end
-
-    corrs = equilibrium_correlations(dmrg_results,corrtype,start,stop,HH,p)
-
-    plot(log10.(collect(0:stop-start)), log10.(abs.(corrs)))
-    title!(corrtype*"-"*corrtype*" correlation")
-    xlabel!("Distance from centre site (log10)")
-    ylabel!("Correlation (log10)")
-end
-
-function compute_correlations(dmrg_results::DMRGResults, A_t0::String, A_t::String, HH::HubbardHolsteinModel, p::Parameters)
+function compute_correlations(dmrg_results::DMRGResults, 
+                            A_t0::String, A_t::String, 
+                            HH::HubbardHolsteinModel, p::Parameters)
     # Results 
     corrs = []
     entropy = []
@@ -410,129 +384,4 @@ function compute_correlations(dmrg_results::DMRGResults, A_t0::String, A_t::Stri
     return TEBDResults(entropy, self_overlap, phonon_flux, hcat(corrs...))
 end
 
-function make_spectral_fcn(corrs, p::Parameters)
-    # now has dimensions time x space
-    sqw = fft.fftshift(fft.fft2(corrs * p.τ, norm="ortho"),axes=0) # TODO: Check the axis
-    qs = range(0, stop=2*π, length=p.N+2)[2:end-1]
-    ωs = 2 * π * fft.fftshift(fft.fftfreq(Int(p.T/p.τ), p.τ))
-    for i in 1:p.N
-        sqw[:,i] = imag.(exp(1im * qs[i] * p.mid) * sqw[:,i])
-    end
-    return real(sqw)/π, ωs, qs
-end
 
-function plot_correlation_function(tebd_results::TEBDResults)
-    heatmap(LinearAlgebra.norm.(tebd_results.corrs'))
-end
-
-function plot_spectral_function(tebd_results::TEBDResults, p::Parameters; lims=nothing)
-    ff, ωs, qs = make_spectral_fcn(tebd_results.corrs', p)
-    if !isnothing(lims)
-        ff = ff[lims[1]:lims[2],:]
-        ωs = ωs[lims[1]:lims[2]]
-    end
-    ff = circshift(ff', p.mid-1)'
-    qs = range(-π, stop=π, length=p.N+2)[2:end-1]
-    maxval = maximum(abs.(ff))
-    heatmap(qs, ωs, abs.(ff), c=:bwr, clims=(-maxval, maxval))
-end
-
-function plot_entropy(tebd_results::TEBDResults)
-    niters = length(tebd_results.entropy)
-    ϕ_entropy = [tebd_results.entropy[n][1] for n in 1:niters]
-    ψ_entropy = [tebd_results.entropy[n][2] for n in 1:niters]
-    plot(1:niters, ϕ_entropy, label="ϕ(t)")
-    plot!(1:niters, ψ_entropy, label="ψ(t)")
-    title!("Von Neumann Entropy")
-    xlabel!("Iteration")
-end
-
-function compare_to_ED(tebd_results::TEBDResults, p::Parameters)
-    @assert p.τ == 0.01 # Time scale of the ED results
-    corrs = tebd_results.corrs
-    ED_corrs = npzread("/Users/nicole/Dropbox/Grad school/Devereaux lab/ITensors.jl/examples/dmrg/ed.npy")
-    numsteps = size(corrs)[2]
-    plot(1:numsteps, real.(corrs[4,:]), label="DMRG real part")
-    plot!(1:numsteps, real.(ED_corrs[1:numsteps]), label="ED real part")
-    plot!(1:numsteps, imag.(corrs[4,:]), label="DMRG complex part")
-    plot!(1:numsteps, imag.(ED_corrs[1:numsteps]), label="ED complex part")
-end
-
-function plot_phonon_flux(tebd_results::TEBDResults)
-    ## TO DO
-end
-
-function plot_overlap(tebd_results::TEBDResults)
-    plot(1:length(tebd_results.self_overlap), tebd_results.self_overlap)
-end
-
-function save_structs(struc, path::String)
-    function Name(arg)
-        string(arg)
-    end
-    fnames = fieldnames(typeof(struc))
-    for fn in fnames 
-        n = Name(fn)
-        d = getfield(struc, fn)
-        jldopen(path, "w") do file
-            write(file, n, d) 
-        end
-    end
-end
-
-## CODE ##
-
-## PARAMETERS ## 
-
-# Model 
-N = 80
-t = 1 
-U = 8
-ω = 0*t 
-g0 = 0*t 
-g1 = 0*g0 
-doping = 0.15
-
-# Simulation 
-T = 0
-τ = 0.05
-DMRG_numsweeps = 100
-DMRG_maxdim = 600
-TEBD_maxdim = 800
-TEBD_cutoff = 1E-8
-DMRG_cutoff = 1E-8
-
-# Saveout info 
-DO_SAVE = false
-save_path = "/Users/nicole/Dropbox/Grad school/Devereaux lab/ITensors.jl/examples/dmrg/results/1dhubbholst_output.jld"
-
-## TODO: Modify number of phonons on each site from script 
-
-# Specify operators of interest
-A_t0 = "Cup"
-A_t = "Cdagup"
-
-# Initialize 
-println("Initializing...")
-params = parameters(N=N, t=t, U=U, ω=ω, g0=g0, g1=g1,doping=doping, 
-                    DMRG_numsweeps=DMRG_numsweeps,
-                    DMRG_maxdim=DMRG_maxdim, DMRG_cutoff=DMRG_cutoff,
-                    T=T, τ=τ, TEBD_cutoff=TEBD_cutoff)
-hubbholst = HubbardHolsteinModel(params)
-if DO_SAVE
-    save_structs(params, save_path)
-end
-
-# Run DMRG
-println("Finding ground state...")
-dmrg_results = run_DMRG(hubbholst, params, alg="divide_and_conquer")
-if DO_SAVE
-    save_structs(dmrg_results, save_path)
-end
-
-# Compute correlation functions 
-println("Computing correlation functions...")
-tebd_results = compute_correlations(dmrg_results, A_t0, A_t, hubbholst, params)
-if DO_SAVE
-    save_structs(tebd_results, save_path)
-end
