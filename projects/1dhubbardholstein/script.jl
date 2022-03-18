@@ -7,7 +7,7 @@ include(joinpath(@__DIR__,"plotting.jl"))
 include(joinpath(@__DIR__,"utilities.jl"))
 
 ## SAVING INFO ##
-DO_SAVE = true
+DO_SAVE = false
 
 ## PARAMETERS ## 
 
@@ -22,13 +22,13 @@ doping = 0
 max_num_phonons = 0 ## TODO: incorporate this! ##
 
 # Simulation 
-T = 20
+T = 40
 τ = 0.05
-DMRG_numsweeps = 100
+DMRG_numsweeps = 20
 DMRG_maxdim = 600
 TEBD_maxdim = 800
 TEBD_cutoff = 1E-8
-DMRG_cutoff = 1E-8
+DMRG_cutoff = 1E-12
 
 # Saveout info 
 fname_out = Dates.format(now(), "yyyy-mm-dd_HH:MM:SS")
