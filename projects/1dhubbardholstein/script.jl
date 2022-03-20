@@ -7,7 +7,7 @@ include(joinpath(@__DIR__,"plotting.jl"))
 include(joinpath(@__DIR__,"utilities.jl"))
 
 ## SAVING INFO ##
-DO_SAVE = false
+DO_SAVE = true
 
 ## PARAMETERS ## 
 
@@ -22,17 +22,17 @@ doping = 0
 max_num_phonons = 0 ## TODO: incorporate this! ##
 
 # Simulation 
-T = 40
+T = 1
 τ = 0.05
-DMRG_numsweeps = 20
+DMRG_numsweeps = 80
 DMRG_maxdim = 600
 TEBD_maxdim = 800
-TEBD_cutoff = 1E-8
-DMRG_cutoff = 1E-12
+TEBD_cutoff = 1E-10
+DMRG_cutoff = 1E-10
 
 # Saveout info 
 fname_out = Dates.format(now(), "yyyy-mm-dd_HH:MM:SS")
-save_path = joinpath(@__DIR__,"outputs",fname_out*".jld")
+save_path = joinpath(@__DIR__,"outputs",fname_out*".h5")
 
 # Specify operators of interest
 A_t0 = "Cup"
@@ -56,6 +56,13 @@ println("Finding ground state...")
 dmrg_results = run_DMRG(hubbholst, params, alg="divide_and_conquer")
 if DO_SAVE
     save_structs(dmrg_results, save_path)
+end
+
+# Equilibrium correlations
+println("Computing equilibrium correlations...")
+eq_corr = compute_all_equilibrium_correlations(dmrg_results, hubbholst)
+if DO_SAVE
+    save_structs(eq_corr, save_path)
 end
 
 # Compute correlation functions 

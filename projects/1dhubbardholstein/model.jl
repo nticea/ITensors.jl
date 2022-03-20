@@ -13,7 +13,10 @@ struct Parameters
     doping::Real
 
     # DMRG parameters
-    sweeps::Sweeps
+    DMRG_numsweeps
+    DMRG_noise
+    DMRG_maxdim
+    DMRG_cutoff
 
     # TEBD parameters
     mid::Int
@@ -34,7 +37,15 @@ end
 struct DMRGResults
     ground_state
     ground_state_energy
-    entropy 
+    ground_state_entropy 
+end
+
+struct EquilibriumCorrelations
+    spin
+    charge
+    sSC
+    pSC
+    dSC
 end
 
 struct TEBDResults
@@ -42,6 +53,8 @@ struct TEBDResults
     self_overlap
     phonon_flux
     corrs 
+    phi_t 
+    psi_t
 end
 
 ## SETTING UP THE MODEL ## 
@@ -63,8 +76,6 @@ function parameters(;N::Int, t::Real, U::Real=nothing, ω::Real=nothing,
     if isnothing(g1)
         g1 = 0*g0
     end
-
-    sweeps = Sweeps(DMRG_numsweeps)
     if isnothing(DMRG_noise)
         DMRG_noise = [1E-6,1E-6,1E-8,0]
     end
@@ -75,11 +86,10 @@ function parameters(;N::Int, t::Real, U::Real=nothing, ω::Real=nothing,
     if isnothing(DMRG_cutoff)
         DMRG_cutoff = 1E-10
     end
-    setnoise!(sweeps, DMRG_noise...) # Very important to use noise for this model
-    setmaxdim!(sweeps, DMRG_maxdim...)
-    setcutoff!(sweeps, DMRG_cutoff...) 
 
-    Parameters(N,t,U,ω,g0,g1,doping,sweeps,ceil(Int,N/2),T,τ,TEBD_cutoff,TEBD_maxdim)
+    Parameters(N,t,U,ω,g0,g1,doping,DMRG_numsweeps,
+                DMRG_noise,DMRG_maxdim,DMRG_cutoff,
+                ceil(Int,N/2),T,τ,TEBD_cutoff,TEBD_maxdim)
 end
 
 function HubbardHolsteinModel(p::Parameters)
@@ -189,9 +199,15 @@ function initialize_wavefcn(HH::HubbardHolsteinModel, p::Parameters)
 end
 
 function run_DMRG(HH::HubbardHolsteinModel, p::Parameters; alg="divide_and_conquer")
+    # Set DMRG params
+    sweeps = Sweeps(p.DMRG_numsweeps)
+    setnoise!(sweeps, p.DMRG_noise...) # Very important to use noise for this model
+    setmaxdim!(sweeps, p.DMRG_maxdim...)
+    setcutoff!(sweeps, p.DMRG_cutoff...) 
+    
     ϕ0 = initialize_wavefcn(HH,p)
     @show flux(ϕ0)
-    energy, ϕ = dmrg(HH.mpo, ϕ0, p.sweeps, alg=alg)
+    energy, ϕ = dmrg(HH.mpo, ϕ0, sweeps, alg=alg)
     entropy = compute_entropy(ϕ, p.mid)
     return DMRGResults(ϕ, energy, entropy)
 end
@@ -285,9 +301,29 @@ function apply_op_twosite(ϕ::MPS, G::ITensor, siteidx::Int; cutoff=1E-8)
     return ϕ
 end
 
+function compute_all_equilibrium_correlations(dmrg_results::DMRGResults, 
+                                            HH::HubbardHolsteinModel;
+                                            start=nothing, stop=nothing)
+
+    N = length(HH.sites)
+    if isnothing(start)
+        start = Int(0.25*N)
+    end 
+    if isnothing(stop)
+        stop = Int(0.75*N)
+    end
+
+    corrtypes = ["spin","charge","sSC","pSC","dSC"]
+    corrs = []
+    for corrtype in corrtypes
+        corr = equilibrium_correlations(dmrg_results,corrtype,HH,start,stop)
+        push!(corrs,corr)
+    end
+    EquilibriumCorrelations(corrs...)
+end
+
 function equilibrium_correlations(dmrg_results::DMRGResults, corrtype::String, 
-                                start::Int, stop::Int,
-                                HH::HubbardHolsteinModel, p::Parameters)
+                                HH::HubbardHolsteinModel, start::Int, stop::Int,)
     
     ϕ = copy(dmrg_results.ground_state)
     j = start
@@ -327,11 +363,6 @@ end
 function compute_correlations(dmrg_results::DMRGResults, 
                             A_t0::String, A_t::String, 
                             HH::HubbardHolsteinModel, p::Parameters)
-    # Results 
-    corrs = []
-    entropy = []
-    self_overlap = []
-    phonon_flux = []
 
     # The wavefunction being acted upon at t=0, |ψ⟩ = A_t0|ϕ⟩
     ϕ = copy(dmrg_results.ground_state)
@@ -348,6 +379,11 @@ function compute_correlations(dmrg_results::DMRGResults,
     # Parameters for time evolution
     nsteps = floor(p.T/p.τ) # Number of time steps for time evolution
     t = 0.0
+
+    # Results 
+    corrs = []
+    entropy = []
+    self_overlap = Float64[]
     for step in 1:nsteps
         print(floor(Int,step),"-")
         ϕ = apply(HH.gates, ϕ; maxdim=p.TEBD_maxdim, cutoff=p.TEBD_cutoff)
@@ -358,17 +394,12 @@ function compute_correlations(dmrg_results::DMRGResults,
         ### SANITY CHECKS
         if step%1==0
             # Compute entropy
-            push!(entropy, (compute_entropy(ϕ, p.mid),compute_entropy(ψ, p.mid)))
+            push!(entropy, [compute_entropy(ϕ, p.mid),compute_entropy(ψ, p.mid)])
             println("Entropy of ϕ, ψ: ", entropy[end])
 
             # Compute overlap of ϕ with its original self
             push!(self_overlap, compute_overlap(ϕ,dmrg_results.ground_state))
             println("Overlap of ϕ with itself: ", self_overlap[end])
-
-            # Phonon flux
-            push!(phonon_flux, (compute_phonon_number(ϕ), compute_phonon_number(ψ)))
-            println("Phonon flux ϕ: ", sum(phonon_flux[end][1])/p.N)
-            println("Phonon flux ψ: ", sum(phonon_flux[end][2])/p.N)
         end
 
         # Calculate ⟨ϕ(t)|c_j^† c_i|ϕ(0)⟩
@@ -381,7 +412,13 @@ function compute_correlations(dmrg_results::DMRGResults,
         # Measure the correlation fcn 
         push!(corrs,measure_corr.(collect(1:p.N)))
     end
-    return TEBDResults(entropy, self_overlap, phonon_flux, hcat(corrs...))
+
+    # Phonon flux
+    phonon_flux = [compute_phonon_number(ϕ), compute_phonon_number(ψ)]
+
+    return TEBDResults(hcat(entropy...), self_overlap, 
+                        hcat(phonon_flux...), hcat(corrs...),
+                        ϕ,ψ)
 end
 
 

@@ -24,17 +24,18 @@ function plot_phonon_flux(dmrg_results::DMRGResults)
 end
 
 function plot_equilibrium_correlations(dmrg_results::DMRGResults, corrtype::String, 
-                                        HH::HubbardHolsteinModel, p::Parameters;
+                                        HH::HubbardHolsteinModel;
                                         start=nothing, stop=nothing)
 
+    N = length(HH.sites)
     if isnothing(start)
-        start = floor(Int, p.N/4)
+        start = floor(Int, N/4)
     end
     if isnothing(stop)
-        stop = ceil(Int, p.N/4*3)
+        stop = ceil(Int, N/4*3)
     end
 
-    corrs = equilibrium_correlations(dmrg_results,corrtype,start,stop,HH,p)
+    corrs = equilibrium_correlations(dmrg_results,corrtype,HH,start,stop)
 
     plot(log10.(collect(0:stop-start)), log10.(abs.(corrs)))
     title!(corrtype*"-"*corrtype*" correlation")
@@ -45,9 +46,10 @@ end
 ## CHECKING TEBD RESULTS ##
 
 function plot_entropy(tebd_results::TEBDResults)
-    niters = length(tebd_results.entropy)
-    ϕ_entropy = [tebd_results.entropy[n][1] for n in 1:niters]
-    ψ_entropy = [tebd_results.entropy[n][2] for n in 1:niters]
+    ent = tebd_results.entropy
+    niters = size(ent)[2]
+    ϕ_entropy = ent[1,:]
+    ψ_entropy = ent[2,:]
     plot(1:niters, ϕ_entropy, label="ϕ(t)")
     plot!(1:niters, ψ_entropy, label="ψ(t)")
     title!("Von Neumann Entropy")
