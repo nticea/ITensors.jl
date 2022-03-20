@@ -3,7 +3,7 @@ using Pkg
 Pkg.activate(joinpath(@__DIR__,"../.."))
 using Dates
 include(joinpath(@__DIR__,"model.jl"))
-include(joinpath(@__DIR__,"plotting.jl"))
+#include(joinpath(@__DIR__,"plotting.jl"))
 include(joinpath(@__DIR__,"utilities.jl"))
 
 ## SAVING INFO ##
