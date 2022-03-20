@@ -12,7 +12,7 @@ DO_SAVE = true
 ## PARAMETERS ## 
 
 # Model 
-N = 8
+N = 79
 t = 1 
 U = 8
 ω = 0*t 
@@ -22,7 +22,7 @@ doping = 0
 max_num_phonons = 0 ## TODO: incorporate this! ##
 
 # Simulation 
-T = 1
+T = 40
 τ = 0.05
 DMRG_numsweeps = 80
 DMRG_maxdim = 600
