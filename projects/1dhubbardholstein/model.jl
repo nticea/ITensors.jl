@@ -307,10 +307,10 @@ function compute_all_equilibrium_correlations(dmrg_results::DMRGResults,
 
     N = length(HH.sites)
     if isnothing(start)
-        start = Int(0.25*N)
+        start = floor(Int,0.25*N)
     end 
     if isnothing(stop)
-        stop = Int(0.75*N)
+        stop = ceil(Int,0.75*N)
     end
 
     corrtypes = ["spin","charge","sSC","pSC","dSC"]
