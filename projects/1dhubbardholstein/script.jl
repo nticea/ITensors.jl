@@ -13,7 +13,7 @@ INTERIM_SAVE = true
 ## PARAMETERS ## 
 
 # Model 
-N = 8#79
+N = 79
 t = 1 
 U = 8
 ω = 0*t 
@@ -23,8 +23,8 @@ doping = 0
 max_num_phonons = 0 ## TODO: incorporate this! ##
 
 # Simulation 
-T = 10#40
-τ = 0.01#0.05
+T = 20
+τ = 0.05
 DMRG_numsweeps = 80
 DMRG_maxdim = 600
 TEBD_maxdim = 800

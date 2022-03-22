@@ -13,8 +13,17 @@ function save_structs(struc, path::String)
                 write(file, n, d)
             end
         catch
-            h5open(path, "w") do file
-                write(file, n, d) 
+            if !isfile(path)
+                h5open(path, "w") do file
+                    write(file, n, d) 
+                end
+            else
+                h5open(path, "r+") do file
+                    if haskey(file, n)
+                        delete_object(file, n)
+                        file[n] = d
+                    end
+                end
             end
         end
     end
@@ -38,7 +47,7 @@ function load_structs(loadpath::String)
                             d["ground_state_entropy"])
     equilibrium_corr = EquilibriumCorrelations(d["spin"], d["charge"], 
                                                 d["sSC"], d["pSC"], d["dSC"])
-    tebd_results = TEBDResults(d["entropy"], d["self_overlap"], d["phonon_flux"],
+    tebd_results = TEBDResults(d["entropy"], d["self_overlap"],
                                 d["corrs"], d["phi_t"], d["psi_t"])
 
     return params, hubbholst, dmrg_results, equilibrium_corr, tebd_results
