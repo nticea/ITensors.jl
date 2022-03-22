@@ -7,7 +7,6 @@ function save_structs(struc, path::String)
     fnames = fieldnames(typeof(struc))
     for fn in fnames 
         n = Name(fn)
-        @show n
         d = getfield(struc, fn)
         try 
             h5open(path, "r+") do file
@@ -25,7 +24,7 @@ function load_structs(loadpath::String)
     f = h5open(loadpath,"r")
     d = read(f)
     d["ground_state"] = read(f, "ground_state", MPS)
-    #d["phi_t"] = read(f, "phi_t", MPS)
+    d["phi_t"] = read(f, "phi_t", MPS)
     d["psi_t"] = read(f, "psi_t", MPS)
     close(f)
 

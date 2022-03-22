@@ -413,10 +413,10 @@ function compute_correlations(dmrg_results::DMRGResults,
         # Measure the correlation fcn 
         push!(corrs,measure_corr.(collect(1:p.N)))
 
-        if interim_save
+        if interim_save && step > 1
             @assert !isnothing(savepath)
             tebd_results_interim = TEBDResults(hcat(entropy...), self_overlap, 
-                                cat(corrs...), ϕ, ψ)
+                                hcat(corrs...), ϕ, ψ)
             save_structs(tebd_results_interim, save_path)
         end
             

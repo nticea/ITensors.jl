@@ -8,6 +8,7 @@ include(joinpath(@__DIR__,"utilities.jl"))
 
 ## SAVING INFO ##
 DO_SAVE = true
+INTERIM_SAVE = true
 
 ## PARAMETERS ## 
 
@@ -68,7 +69,7 @@ end
 # Compute correlation functions 
 println("Computing correlation functions...")
 tebd_results = compute_correlations(dmrg_results, A_t0, A_t, hubbholst, params,
-                                    interim_save=true, savepath=save_path)
+                                    interim_save=INTERIM_SAVE, savepath=save_path)
 if DO_SAVE
     save_structs(tebd_results, save_path)
 end
