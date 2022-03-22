@@ -12,7 +12,7 @@ DO_SAVE = true
 ## PARAMETERS ## 
 
 # Model 
-N = 79
+N = 8#79
 t = 1 
 U = 8
 ω = 0*t 
@@ -22,8 +22,8 @@ doping = 0
 max_num_phonons = 0 ## TODO: incorporate this! ##
 
 # Simulation 
-T = 40
-τ = 0.05
+T = 10#40
+τ = 0.01#0.05
 DMRG_numsweeps = 80
 DMRG_maxdim = 600
 TEBD_maxdim = 800
@@ -67,7 +67,8 @@ end
 
 # Compute correlation functions 
 println("Computing correlation functions...")
-tebd_results = compute_correlations(dmrg_results, A_t0, A_t, hubbholst, params)
+tebd_results = compute_correlations(dmrg_results, A_t0, A_t, hubbholst, params,
+                                    interim_save=true, savepath=save_path)
 if DO_SAVE
     save_structs(tebd_results, save_path)
 end

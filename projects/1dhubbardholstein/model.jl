@@ -51,7 +51,6 @@ end
 struct TEBDResults
     entropy
     self_overlap
-    phonon_flux
     corrs 
     phi_t 
     psi_t
@@ -362,7 +361,8 @@ end
 
 function compute_correlations(dmrg_results::DMRGResults, 
                             A_t0::String, A_t::String, 
-                            HH::HubbardHolsteinModel, p::Parameters)
+                            HH::HubbardHolsteinModel, p::Parameters;
+                            interim_save=false, savepath=nothing)
 
     # The wavefunction being acted upon at t=0, |ψ⟩ = A_t0|ϕ⟩
     ϕ = copy(dmrg_results.ground_state)
@@ -384,6 +384,7 @@ function compute_correlations(dmrg_results::DMRGResults,
     corrs = []
     entropy = []
     self_overlap = Float64[]
+
     for step in 1:nsteps
         print(floor(Int,step),"-")
         ϕ = apply(HH.gates, ϕ; maxdim=p.TEBD_maxdim, cutoff=p.TEBD_cutoff)
@@ -411,14 +412,18 @@ function compute_correlations(dmrg_results::DMRGResults,
 
         # Measure the correlation fcn 
         push!(corrs,measure_corr.(collect(1:p.N)))
+
+        if interim_save
+            @assert !isnothing(savepath)
+            tebd_results_interim = TEBDResults(hcat(entropy...), self_overlap, 
+                                cat(corrs...), ϕ, ψ)
+            save_structs(tebd_results_interim, save_path)
+        end
+            
     end
 
-    # Phonon flux
-    phonon_flux = [compute_phonon_number(ϕ), compute_phonon_number(ψ)]
-
     return TEBDResults(hcat(entropy...), self_overlap, 
-                        hcat(phonon_flux...), hcat(corrs...),
-                        ϕ,ψ)
+                        hcat(corrs...), ϕ, ψ)
 end
 
 
