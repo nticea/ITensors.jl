@@ -16,17 +16,17 @@ INTERIM_SAVE = true
 N = 79
 t = 1 
 U = 8
-ω = 0*t 
-g0 = 0*t 
+ω = 0.5*t 
+g0 = 0.1*t 
 g1 = 0*g0 
-doping = 0
+doping = 0.1
 max_num_phonons = 0 ## TODO: incorporate this! ##
 
 # Simulation 
 T = 20
 τ = 0.05
 DMRG_numsweeps = 80
-DMRG_maxdim = 600
+DMRG_maxdim = 800
 TEBD_maxdim = 800
 TEBD_cutoff = 1E-10
 DMRG_cutoff = 1E-10

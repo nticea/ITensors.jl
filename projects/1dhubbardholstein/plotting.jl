@@ -63,7 +63,7 @@ end
 ## TIME-DEPENDENT CORRELATIONS ## 
 
 function plot_correlation_function(tebd_results::TEBDResults)
-    heatmap(LinearAlgebra.norm.(tebd_results.corrs'))
+    heatmap(LinearAlgebra.norm.(tebd_results.corrs'),color_palette=:dense)
 end
 
 function make_spectral_fcn(corrs, p::Parameters)
@@ -86,7 +86,17 @@ function plot_spectral_function(tebd_results::TEBDResults, p::Parameters; lims=n
     ff = circshift(ff', p.mid-1)'
     qs = range(-π, stop=π, length=p.N+2)[2:end-1]
     maxval = maximum(abs.(ff))
-    heatmap(qs, ωs, abs.(ff), c=:bwr, clims=(-maxval, maxval))
+    heatmap(qs, ωs, abs.(ff), yflip=true, c=:bwr, clims=(-maxval, maxval))
+end
+
+function plot_spectral_function_slice(tebd_results::TEBDResults, p::Parameters; slice=0)
+    findnearest(A::AbstractArray,t) = findmin(abs.(A.-t))[2]
+    
+    ff, ωs, qs = make_spectral_fcn(tebd_results.corrs', p)
+    ff = circshift(ff', p.mid-1)'
+    qs = range(-π, stop=π, length=p.N+2)[2:end-1]
+    ω = findnearest(ωs,slice)
+    plot(qs, abs.(ff)[ω,:])
 end
 
 function compare_to_ED(tebd_results::TEBDResults, p::Parameters)
