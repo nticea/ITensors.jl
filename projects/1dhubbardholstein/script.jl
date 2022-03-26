@@ -13,11 +13,11 @@ INTERIM_SAVE = true
 ## PARAMETERS ## 
 
 # Model 
-N = 79
+N = 80
 t = 1 
 U = 8
-ω = 0.5*t 
-g0 = 0.1*t 
+ω = 0*t 
+g0 = 0*t 
 g1 = 0*g0 
 doping = 0
 max_num_phonons = 0 ## TODO: incorporate this! ##
