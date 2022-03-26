@@ -19,11 +19,11 @@ U = 8
 ω = 0.5*t 
 g0 = 0.1*t 
 g1 = 0*g0 
-doping = 0.1
+doping = 0
 max_num_phonons = 0 ## TODO: incorporate this! ##
 
 # Simulation 
-T = 20
+T = 25
 τ = 0.05
 DMRG_numsweeps = 80
 DMRG_maxdim = 800
@@ -32,7 +32,7 @@ TEBD_cutoff = 1E-10
 DMRG_cutoff = 1E-10
 
 # Saveout info 
-fname_out = Dates.format(now(), "yyyy-mm-dd_HH:MM:SS")
+fname_out = Dates.format(now(), "no_doping_1phonon_79")
 save_path = joinpath(@__DIR__,"outputs",fname_out*".h5")
 
 # Specify operators of interest

@@ -6,6 +6,7 @@ version = "0.2.15"
 [deps]
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
 Compat = "34da2185-b29b-5c13-b0c7-acf172513d20"
+DSP = "717857b8-e6f2-59f4-9121-6e50c889abd2"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 Debugger = "31a5f54b-26ea-5ae9-a837-f05ce5417438"
 Dictionaries = "85a47980-9c8c-11e8-2b9f-f7ca1fa99fb4"

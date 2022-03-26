@@ -9,7 +9,7 @@ using ITensors.HDF5
 # Load the results in 
 #fname = "2022-03-22_09:17:13" # format yyyy-mm-dd_HH:MM:SS
 #loadpath = joinpath(@__DIR__,"outputs",fname*".h5")
-loadpath = "/Users/nicole/sherlock_home/ITensors.jl/projects/1dhubbardholstein/outputs/2022-03-22_10:18:27.h5"
+loadpath = "/Users/nicole/sherlock/ITensors.jl/projects/1dhubbardholstein/outputs/2022-03-24_20:49:25.h5"
 params, hubbholst, dmrg_results, equilibrium_corr, tebd_results = load_structs(loadpath)
 
 # Visualize things we want

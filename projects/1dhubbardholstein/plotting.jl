@@ -1,6 +1,7 @@
 ## IMPORTS ## 
 using SciPy: fft
 using Plots
+using DSP
 include(joinpath(@__DIR__,"model.jl"))
 
 ## EQUILIBRIUM CORRELATIONS ##
@@ -77,8 +78,30 @@ function make_spectral_fcn(corrs, p::Parameters)
     return real(sqw)/π, ωs, qs
 end
 
-function plot_spectral_function(tebd_results::TEBDResults, p::Parameters; lims=nothing)
-    ff, ωs, qs = make_spectral_fcn(tebd_results.corrs', p)
+function convolve(u;shape="exponential")
+    if shape=="exponential"
+        t = collect(1:(length(u)*2-1))
+        λ = 1/sqrt(length(t))
+        v = exp.(-λ*t)
+    else
+        @error "Not implemented"
+    end
+    u = convert(Array{ComplexF64,1}, u)
+    return conv(u,v)
+end
+
+function plot_spectral_function(tebd_results::TEBDResults, p::Parameters; 
+                                lims=nothing, do_convolve=false)
+    # Optionally convolve raw time data with decaying exponential
+    corrs = tebd_results.corrs' # num_time_steps x num_sites
+    if do_convolve
+        @error "Not implemented yet, sorry"
+        # for (i,r) in enumerate(eachrow(corrs_raw))
+        #     @show size(convolve(r))
+        #     corrs[:,i] .= convolve(r)
+        # end
+    end
+    ff, ωs, qs = make_spectral_fcn(corrs, p)
     if !isnothing(lims)
         ff = ff[lims[1]:lims[2],:]
         ωs = ωs[lims[1]:lims[2]]
