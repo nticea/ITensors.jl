@@ -32,7 +32,7 @@ TEBD_cutoff = 1E-10
 DMRG_cutoff = 1E-10
 
 # Saveout info 
-fname_out = Dates.format(now(), "no_doping_1phonon_79")
+fname_out = Dates.format(now(), "no_doping_no_phonon_80")
 save_path = joinpath(@__DIR__,"outputs",fname_out*".h5")
 
 # Specify operators of interest

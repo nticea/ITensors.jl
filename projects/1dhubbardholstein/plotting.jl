@@ -71,7 +71,7 @@ function make_spectral_fcn(corrs, p::Parameters)
     # now has dimensions time x space
     sqw = fft.fftshift(fft.fft2(corrs * p.τ, norm="ortho"),axes=0) # TODO: Check the axis
     qs = range(0, stop=2*π, length=p.N+2)[2:end-1]
-    ωs = 2 * π * fft.fftshift(fft.fftfreq(Int(p.T/p.τ), p.τ))
+    ωs = 2 * π * fft.fftshift(fft.fftfreq(size(corrs)[1], p.τ))
     for i in 1:p.N
         sqw[:,i] = imag.(exp(1im * qs[i] * p.mid) * sqw[:,i])
     end
