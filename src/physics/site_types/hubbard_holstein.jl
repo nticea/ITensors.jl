@@ -1,7 +1,7 @@
 using LinearAlgebra
 using SparseArrays
 
-PHONON_DOF = 2
+PHONON_DOF = 4
 """
     space(::SiteType"HubHolst"; 
           conserve_qns = false,

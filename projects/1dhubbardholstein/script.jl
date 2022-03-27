@@ -18,8 +18,8 @@ t = 1
 U = 8
 ω = 0.5*t 
 g0 = 0.1*t 
-g1 = 0*g0 
-doping = 0.05
+g1 = 0.1*g0 
+doping = 0
 #max_num_phonons = 1 ## TODO: incorporate this! ##
 
 # Simulation 
@@ -32,7 +32,7 @@ TEBD_cutoff = 1E-10
 DMRG_cutoff = 1E-10
 
 # Saveout info 
-fname_out = Dates.format(now(), "0.05_doping_nn_phonon_80")
+fname_out = Dates.format(now(), "3_phonon_and_nnn_80")
 save_path = joinpath(@__DIR__,"outputs",fname_out*".h5")
 
 # Specify operators of interest
