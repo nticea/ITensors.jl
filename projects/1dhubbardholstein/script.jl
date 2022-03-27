@@ -19,7 +19,7 @@ U = 8
 ω = 0.5*t 
 g0 = 0.1*t 
 g1 = 0*g0 
-doping = 0
+doping = 0.05
 #max_num_phonons = 1 ## TODO: incorporate this! ##
 
 # Simulation 
