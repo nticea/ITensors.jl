@@ -19,11 +19,11 @@ U = 8
 ω = 0*t 
 g0 = 0*t 
 g1 = 0*g0 
-doping = 0
+doping = 0.05
 max_num_phonons = 0 ## TODO: incorporate this! ##
 
 # Simulation 
-T = 25
+T = 30
 τ = 0.05
 DMRG_numsweeps = 80
 DMRG_maxdim = 800
