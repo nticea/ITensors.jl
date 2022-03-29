@@ -10,9 +10,6 @@ include(joinpath(@__DIR__,"utilities.jl"))
 DO_SAVE = true
 INTERIM_SAVE = true
 
-fname_out = Dates.format(now(), "HH:MM:SS") * "_" * "more_name"
-save_path = joinpath(@__DIR__,"outputs",fname_out*".h5")
-
 ## PARAMETERS ## 
 
 # Model 
@@ -24,6 +21,11 @@ g0 = 0.5*t
 g1 = 0.1*g0 
 doping = 0
 max_phonons = 1 
+
+# save path
+date_stamp = Dates.format(now(), "HH:MM:SS") 
+param_stamp = "_$(N)N_$(t)t_$(U)U_$(ω)ω_$(g0)g0_$(g1)g1_$(doping)doping_$(max_phonons)phonons"
+save_path = joinpath(@__DIR__,"outputs",date_stamp*param_stamp*".h5")
 
 # Simulation 
 T = 10
