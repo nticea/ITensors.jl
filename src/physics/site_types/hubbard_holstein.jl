@@ -99,7 +99,7 @@ end
 ## ELECTRON OPERATORS ## 
 
 function ITensors.op(::OpName"I", ::SiteType"HubHolst", s::Index)
-  M = Matrix(I, 4*floor(Int,dim(s)/4), 4*floor(Int,dim(s)/4))
+  M = Matrix(I, Int(dim(s)), Int(dim(s)))
   ITensor(M, prime(s), dag(s))
 end
 

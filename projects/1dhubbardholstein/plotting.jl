@@ -3,6 +3,7 @@
 using Plots
 using FFTW
 using DSP
+using NPZ
 include(joinpath(@__DIR__,"model.jl"))
 
 ## EQUILIBRIUM CORRELATIONS ##

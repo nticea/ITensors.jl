@@ -19,11 +19,11 @@ save_path = joinpath(@__DIR__,"outputs",fname_out*".h5")
 N = 8
 t = 1 
 U = 8
-ω = 0*t 
-g0 = 0*t 
-g1 = 0*g0 
+ω = 0.1*t 
+g0 = 0.5*t 
+g1 = 0.1*g0 
 doping = 0
-max_phonons = 0 ## TODO: incorporate this! ##
+max_phonons = 1 ## TODO: incorporate this! ##
 
 # Simulation 
 T = 10
