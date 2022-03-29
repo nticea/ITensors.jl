@@ -7,8 +7,8 @@ include(joinpath(@__DIR__,"utilities.jl"))
 
 ## SAVING INFO ##
 
-DO_SAVE = false
-INTERIM_SAVE = false
+DO_SAVE = true
+INTERIM_SAVE = true
 
 fname_out = Dates.format(now(), "HH:MM:SS") * "_" * "more_name"
 save_path = joinpath(@__DIR__,"outputs",fname_out*".h5")
@@ -16,19 +16,19 @@ save_path = joinpath(@__DIR__,"outputs",fname_out*".h5")
 ## PARAMETERS ## 
 
 # Model 
-N = 8
+N = 80
 t = 1 
 U = 8
 ω = 0.1*t 
 g0 = 0.5*t 
 g1 = 0.1*g0 
 doping = 0
-max_phonons = 1 ## TODO: incorporate this! ##
+max_phonons = 1 
 
 # Simulation 
 T = 10
 τ = 0.01
-DMRG_numsweeps = 20
+DMRG_numsweeps = 80
 DMRG_maxdim = 800
 TEBD_maxdim = 800
 TEBD_cutoff = 1E-10
