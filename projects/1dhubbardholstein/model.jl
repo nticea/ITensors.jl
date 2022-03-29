@@ -11,6 +11,8 @@ struct Parameters
     g0::Real
     g1::Real
     doping::Real
+    max_phonons::Int
+    init_phonons::Int
 
     # DMRG parameters
     DMRG_numsweeps
@@ -60,7 +62,9 @@ end
 
 function parameters(;N::Int, t::Real, U::Real=nothing, ω::Real=nothing, 
                     g0::Real=nothing, g1::Real=nothing, doping::Real=0, 
-                    DMRG_numsweeps::Int=20, DMRG_noise=nothing, DMRG_maxdim=nothing, DMRG_cutoff=nothing,
+                    max_phonons::Int=1, init_phonons::Int=0,
+                    DMRG_numsweeps::Int=20, DMRG_noise=nothing, 
+                    DMRG_maxdim=nothing, DMRG_cutoff=nothing,
                     T::Int=25, τ::Real=0.1, TEBD_cutoff=1E-14, TEBD_maxdim=400)
     
     if isnothing(U)
@@ -75,27 +79,30 @@ function parameters(;N::Int, t::Real, U::Real=nothing, ω::Real=nothing,
     if isnothing(g1)
         g1 = 0*g0
     end
+    if max_phonons==0
+        @assert ω==g0==g1==0
+    end
+
     if isnothing(DMRG_noise)
         DMRG_noise = [1E-6,1E-6,1E-8,0]
     end
     if isnothing(DMRG_maxdim)
         DMRG_maxdim = [20,40,100,200,400]
     end
-
     if isnothing(DMRG_cutoff)
         DMRG_cutoff = 1E-10
     end
 
-    Parameters(N,t,U,ω,g0,g1,doping,DMRG_numsweeps,
-                DMRG_noise,DMRG_maxdim,DMRG_cutoff,
+    Parameters(N,t,U,ω,g0,g1,doping,max_phonons,init_phonons,
+                DMRG_numsweeps,DMRG_noise,DMRG_maxdim,DMRG_cutoff,
                 ceil(Int,N/2),T,τ,TEBD_cutoff,TEBD_maxdim)
 end
 
 function HubbardHolsteinModel(p::Parameters)
-    N, t, U, ω, g0, g1, τ = p.N, p.t, p.U, p.ω, p.g0, p.g1, p.τ
+    N, t, U, ω, g0, g1, τ, max_phonons = p.N, p.t, p.U, p.ω, p.g0, p.g1, p.τ, p.max_phonons
 
     # make the sites 
-    sites = siteinds("HubHolst", N) 
+    sites = siteinds("HubHolst", N; dim=max_phonons+1)
 
     # make the hamiltonian 
     ampo = OpSum()
@@ -110,19 +117,23 @@ function HubbardHolsteinModel(p::Parameters)
         ampo += U,"Nupdn",j,"I",j
 
         # ∑_j ω * nb_j
-        ampo += ω,"Nb",j
+        if max_phonons >= 1
+            ampo += ω,"Nb",j
 
-        # # ∑_j g0 * nf_j (b^†_j + b_j)
-        ampo += g0,"Ntot(Bd+B)",j
+            # # ∑_j g0 * nf_j (b^†_j + b_j)
+            ampo += g0,"Ntot(Bd+B)",j
 
-        # # ∑_⟨ij⟩ g1 * nf_j (b^†_i + b_i)
-        ampo += g1,"Ntot",j,"Bdag+B",j+1 
-        ampo += g1,"Ntot",j+1,"Bdag+B",j
+            # # ∑_⟨ij⟩ g1 * nf_j (b^†_i + b_i)
+            ampo += g1,"Ntot",j,"Bdag+B",j+1
+            ampo += g1,"Ntot",j+1,"Bdag+B",j
+        end
     end
     # Edge site
     ampo += U,"Nupdn",N
-    ampo += ω,"Nb",N
-    ampo += g0,"Ntot(Bd+B)",N
+    if max_phonons >= 1
+        ampo += ω,"Nb",N
+        ampo += g0,"Ntot(Bd+B)",N
+    end
     H = MPO(ampo,sites)
 
     # make the trotter gates 
@@ -135,12 +146,18 @@ function HubbardHolsteinModel(p::Parameters)
                  -op("Cup*F",s1) * op("Cdagup",s2) 
                  +op("Cdagdn*F",s1) * op("Cdn",s2) 
                  -op("Cdn*F",s1) * op("Cdagdn",s2)) 
+        if max_phonons >= 1
+            hj_twosite  = hj_twosite
                 + g1*(op("Ntot",s1) * op("Bdag+B",s2))
                 + g1*(op("Bdag+B",s1) * op("Ntot",s2))
+        end
 
-        hj_onesite = U*(op("Nupdn",s1) * op("I",s2))    
+        hj_onesite = U*(op("Nupdn",s1) * op("I",s2))
+        if max_phonons >=1
+            hj_onesite = hj_onesite
                     + ω*(op("Nb",s1) * op("I",s2))   
                     + g0*(op("Ntot(Bd+B)",s1) * op("I",s2))
+        end
             
         Gj_twosite = exp(-1.0im * τ/2 * hj_twosite)
         Gj_onesite = exp(-1.0im * τ/2 * hj_onesite)
@@ -149,8 +166,11 @@ function HubbardHolsteinModel(p::Parameters)
     end
     # End site 
     hn = U*op("Nupdn",sites[N]) 
+    if max_phonons >= 1
+        hn = hn
         + ω*op("Nb",sites[N]) 
         + g0*op("Ntot(Bd+B)",sites[N])
+    end
     Gn = exp(-1.0im * τ/2 * hn)
     push!(gates,Gn)
     append!(gates,reverse(gates))
@@ -186,14 +206,20 @@ end
 ## DMRG ## 
 
 function initialize_wavefcn(HH::HubbardHolsteinModel, p::Parameters)
-    state = [isodd(n) ? "Up,0" : "Dn,0" for n=1:p.N] # NOTE: the QN of this state is preserved through DMRG
+    # Extract the information 
+    ups = "Up,"*string(p.init_phonons)
+    downs = "Dn,"*string(p.init_phonons)
+    emps = "Emp,"*string(p.init_phonons)
+    
+    state = [isodd(n) ? ups : downs for n=1:p.N] 
 
     # Account for doping
     if p.doping > 0
         spacing = floor(Int,1/p.doping)
-        state[1:spacing:end] .= "Emp,0"
+        state[1:spacing:end] .= emps
     end
 
+    # NOTE: the QN of this state is preserved during DMRG
     productMPS(HH.sites,state) 
 end
 

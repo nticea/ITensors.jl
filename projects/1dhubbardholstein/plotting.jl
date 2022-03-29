@@ -1,6 +1,7 @@
 ## IMPORTS ## 
-using SciPy: fft
+#using SciPy: fft 
 using Plots
+using FFTW
 using DSP
 include(joinpath(@__DIR__,"model.jl"))
 
@@ -64,62 +65,69 @@ end
 ## TIME-DEPENDENT CORRELATIONS ## 
 
 function plot_correlation_function(tebd_results::TEBDResults)
-    heatmap(LinearAlgebra.norm.(tebd_results.corrs'),color_palette=:dense)
+    heatmap(LinearAlgebra.norm.(tebd_results.corrs'),c=:heat)
 end
 
 function make_spectral_fcn(corrs, p::Parameters)
-    # now has dimensions time x space
-    sqw = fft.fftshift(fft.fft2(corrs * p.τ, norm="ortho"),axes=0) # TODO: Check the axis
-    qs = range(0, stop=2*π, length=p.N+2)[2:end-1]
-    ωs = 2 * π * fft.fftshift(fft.fftfreq(size(corrs)[1], p.τ))
-    for i in 1:p.N
+    sqw = FFTW.fft(p.τ * corrs)'
+    qs = range(-π, stop=π, length=p.N+2)[2:end-1]
+    ωs = 2 * π * FFTW.fftfreq(size(corrs)[2], 1/p.τ)
+
+    # apply shifts 
+    sqw = FFTW.fftshift(sqw)
+    ωs = FFTW.fftshift(ωs)
+
+    # Compensate for midpoint 
+    for i in 1:p.N 
         sqw[:,i] = imag.(exp(1im * qs[i] * p.mid) * sqw[:,i])
     end
-    return real(sqw)/π, ωs, qs
+
+    # take average across both sides
+    println("Taking average....")
+    sqw = (sqw + reverse(sqw,dims=2)) ./ 2
+    return abs.(sqw)/π, ωs, qs 
 end
 
-function convolve(u;shape="exponential")
-    if shape=="exponential"
-        t = collect(1:(length(u)*2-1))
-        λ = 1/sqrt(length(t))
-        v = exp.(-λ*t)
-    else
-        @error "Not implemented"
-    end
-    u = convert(Array{ComplexF64,1}, u)
-    return conv(u,v)
-end
+# function convolve(u;shape="exponential")
+#     if shape=="exponential"
+#         t = collect(1:(length(u)*2-1))
+#         λ = 1/sqrt(length(t))
+#         v = exp.(-λ*t)
+#     else
+#         @error "Not implemented"
+#     end
+#     u = convert(Array{ComplexF64,1}, u)
+#     return conv(u,v)
+# end
 
 function plot_spectral_function(tebd_results::TEBDResults, p::Parameters; 
-                                lims=nothing, do_convolve=false)
-    # Optionally convolve raw time data with decaying exponential
-    corrs = tebd_results.corrs' # num_time_steps x num_sites
-    if do_convolve
-        @error "Not implemented yet, sorry"
-        # for (i,r) in enumerate(eachrow(corrs_raw))
-        #     @show size(convolve(r))
-        #     corrs[:,i] .= convolve(r)
-        # end
-    end
+                                lims=nothing)
+    # Optionally convolve raw time data with decaying exponential?? TODO
+
+    # Calculate the spectral function 
+    corrs = tebd_results.corrs # num_time_steps x num_sites
     ff, ωs, qs = make_spectral_fcn(corrs, p)
-    if !isnothing(lims)
-        ff = ff[lims[1]:lims[2],:]
-        ωs = ωs[lims[1]:lims[2]]
+
+    # Zoom in to the relevant bit 
+    if isnothing(lims)
+        nstep = size(corrs)[2]
+        lims = (floor(Int, nstep/2) - floor(Int, 0.07*nstep),floor(Int, nstep/2) + floor(Int, 0.07*nstep))
     end
-    ff = circshift(ff', p.mid-1)'
-    qs = range(-π, stop=π, length=p.N+2)[2:end-1]
+    ff = ff[lims[1]:lims[2],:]
+    ωs = ωs[lims[1]:lims[2]]
+
+    # Plot 
     maxval = maximum(abs.(ff))
-    heatmap(qs, ωs, abs.(ff), yflip=true, c=:bwr, clims=(-maxval, maxval))
+    heatmap(qs, ωs, ff, c=:bwr, clims=(-maxval, maxval))
 end
 
 function plot_spectral_function_slice(tebd_results::TEBDResults, p::Parameters; slice=0)
     findnearest(A::AbstractArray,t) = findmin(abs.(A.-t))[2]
     
-    ff, ωs, qs = make_spectral_fcn(tebd_results.corrs', p)
-    ff = circshift(ff', p.mid-1)'
-    qs = range(-π, stop=π, length=p.N+2)[2:end-1]
+    ff, ωs, qs = make_spectral_fcn(tebd_results.corrs, p)
     ω = findnearest(ωs,slice)
-    plot(qs, abs.(ff)[ω,:])
+    scatter(qs, abs.(ff)[ω,:],color="blue")
+    plot!(qs, abs.(ff)[ω,:],color="blue")
 end
 
 function compare_to_ED(tebd_results::TEBDResults, p::Parameters)

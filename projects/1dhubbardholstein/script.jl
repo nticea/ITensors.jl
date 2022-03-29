@@ -3,39 +3,38 @@ using Pkg
 Pkg.activate(joinpath(@__DIR__,"../.."))
 using Dates
 include(joinpath(@__DIR__,"model.jl"))
-#include(joinpath(@__DIR__,"plotting.jl"))
 include(joinpath(@__DIR__,"utilities.jl"))
 
 ## SAVING INFO ##
-DO_SAVE = true
-INTERIM_SAVE = true
+
+DO_SAVE = false
+INTERIM_SAVE = false
+
+fname_out = Dates.format(now(), "HH:MM:SS") * "_" * "more_name"
+save_path = joinpath(@__DIR__,"outputs",fname_out*".h5")
 
 ## PARAMETERS ## 
 
 # Model 
-N = 80
+N = 8
 t = 1 
 U = 8
-ω = 0.5*t 
-g0 = 0.1*t 
-g1 = 0.1*g0 
+ω = 0*t 
+g0 = 0*t 
+g1 = 0*g0 
 doping = 0
-#max_num_phonons = 1 ## TODO: incorporate this! ##
+max_phonons = 0 ## TODO: incorporate this! ##
 
 # Simulation 
-T = 30
-τ = 0.05
-DMRG_numsweeps = 80
+T = 10
+τ = 0.01
+DMRG_numsweeps = 20
 DMRG_maxdim = 800
 TEBD_maxdim = 800
 TEBD_cutoff = 1E-10
 DMRG_cutoff = 1E-10
 
-# Saveout info 
-fname_out = Dates.format(now(), "3_phonon_and_nnn_80")
-save_path = joinpath(@__DIR__,"outputs",fname_out*".h5")
-
-# Specify operators of interest
+# Specify spectral function operators 
 A_t0 = "Cup"
 A_t = "Cdagup"
 
@@ -44,6 +43,7 @@ A_t = "Cdagup"
 # Initialize 
 println("Initializing...")
 params = parameters(N=N, t=t, U=U, ω=ω, g0=g0, g1=g1, doping=doping, 
+                    max_phonons=max_phonons,
                     DMRG_numsweeps=DMRG_numsweeps,
                     DMRG_maxdim=DMRG_maxdim, DMRG_cutoff=DMRG_cutoff,
                     T=T, τ=τ, TEBD_cutoff=TEBD_cutoff)
