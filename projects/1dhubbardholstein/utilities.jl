@@ -39,6 +39,8 @@ function load_structs(loadpath::String)
 
     # Make the structs
     params = Parameters(d["N"], d["t"], d["U"], d["ω"], d["g0"], d["g1"], d["doping"],
+                        #d["max_phonons"], d["init_phonons"],
+                        0,0,
                         d["DMRG_numsweeps"], d["DMRG_noise"],d["DMRG_maxdim"],
                         d["DMRG_cutoff"], d["mid"], d["T"], d["τ"], 
                         d["TEBD_cutoff"], d["TEBD_maxdim"])

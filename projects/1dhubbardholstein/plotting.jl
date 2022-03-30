@@ -1,8 +1,6 @@
 ## IMPORTS ## 
-#using SciPy: fft 
 using Plots
 using FFTW
-using DSP
 using NPZ
 include(joinpath(@__DIR__,"model.jl"))
 
@@ -70,13 +68,16 @@ function plot_correlation_function(tebd_results::TEBDResults)
 end
 
 function make_spectral_fcn(corrs, p::Parameters)
-    sqw = FFTW.fft(p.τ * corrs)'
+    f1 = fft(p.τ * corrs)
+    f2 = fft(p.τ * reverse(corrs, dims=2))
+    sqw = zeros(size(f1))
+
     qs = range(-π, stop=π, length=p.N+2)[2:end-1]
-    ωs = 2 * π * FFTW.fftfreq(size(corrs)[2], 1/p.τ)
+    ωs = 2 * π * fftfreq(size(corrs)[2], 1/p.τ)
 
     # apply shifts 
-    sqw = FFTW.fftshift(sqw)
-    ωs = FFTW.fftshift(ωs)
+    sqw = fftshift(sqw)
+    ωs = fftshift(ωs)
 
     # Compensate for midpoint 
     for i in 1:p.N 
@@ -89,29 +90,31 @@ function make_spectral_fcn(corrs, p::Parameters)
     return abs.(sqw)/π, ωs, qs 
 end
 
-# function convolve(u;shape="exponential")
-#     if shape=="exponential"
-#         t = collect(1:(length(u)*2-1))
-#         λ = 1/sqrt(length(t))
-#         v = exp.(-λ*t)
-#     else
-#         @error "Not implemented"
-#     end
-#     u = convert(Array{ComplexF64,1}, u)
-#     return conv(u,v)
-# end
+function decay(u;shape="exponential")
+    if shape=="exponential"
+        t = collect(1:(length(u)))
+        λ = 1/sqrt(length(t))
+        v = exp.(-λ*t)
+    else
+        @error "Not implemented"
+    end
+    u .* v
+end
 
 function plot_spectral_function(tebd_results::TEBDResults, p::Parameters; 
-                                lims=nothing)
+                                smooth_signal=true, lims=nothing)
     # Optionally convolve raw time data with decaying exponential?? TODO
 
     # Calculate the spectral function 
-    corrs = tebd_results.corrs # num_time_steps x num_sites
+    corrs = tebd_results.corrs' # num_time_steps x num_sites
+    if smooth_signal
+        corrs = hcat(decay.(eachcol(corrs))...)
+    end
     ff, ωs, qs = make_spectral_fcn(corrs, p)
 
     # Zoom in to the relevant bit 
     if isnothing(lims)
-        nstep = size(corrs)[2]
+        nstep = size(corrs)[1]
         lims = (floor(Int, nstep/2) - floor(Int, 0.07*nstep),floor(Int, nstep/2) + floor(Int, 0.07*nstep))
     end
     ff = ff[lims[1]:lims[2],:]
