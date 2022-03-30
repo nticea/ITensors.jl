@@ -67,33 +67,27 @@ function plot_correlation_function(tebd_results::TEBDResults)
     heatmap(LinearAlgebra.norm.(tebd_results.corrs'),c=:heat)
 end
 
-function make_spectral_fcn(corrs, p::Parameters)
-    f1 = fft(p.τ * corrs)
-    f2 = fft(p.τ * reverse(corrs, dims=2))
-    sqw = zeros(size(f1))
+function make_spectral_fcn(corrs, p::Parameters; left_offset::Int=0)
+    f1 = fftshift(fft(p.τ * corrs)')
+    f2 = fftshift(fft(p.τ * reverse(corrs, dims=1))')
 
-    qs = range(-π, stop=π, length=p.N+2)[2:end-1]
-    ωs = 2 * π * fftfreq(size(corrs)[2], 1/p.τ)
-
-    # apply shifts 
-    sqw = fftshift(sqw)
-    ωs = fftshift(ωs)
+    qs = 2 * π * fftshift(fftfreq(p.N, 1))
+    ωs = 2 * π * fftshift(fftfreq(size(corrs)[2], 1/p.τ))
 
     # Compensate for midpoint 
+    sqw = zeros(size(f1))
     for i in 1:p.N 
-        sqw[:,i] = imag.(exp(1im * qs[i] * p.mid) * sqw[:,i])
+        sqw[:,i] = imag.(exp.(1im * qs[i] * (p.mid-left_offset)) * f1[:,i])
+                    + imag.(exp.(1im * qs[i] * (p.N-1-p.mid-left_offset)) * f2[:,i])
     end
 
-    # take average across both sides
-    println("Taking average....")
-    sqw = (sqw + reverse(sqw,dims=2)) ./ 2
     return abs.(sqw)/π, ωs, qs 
 end
 
 function decay(u;shape="exponential")
     if shape=="exponential"
         t = collect(1:(length(u)))
-        λ = 1/sqrt(length(t))
+        λ = 0.1/sqrt(length(t)/2)
         v = exp.(-λ*t)
     else
         @error "Not implemented"
@@ -103,18 +97,21 @@ end
 
 function plot_spectral_function(tebd_results::TEBDResults, p::Parameters; 
                                 smooth_signal=true, lims=nothing)
-    # Optionally convolve raw time data with decaying exponential?? TODO
+    corrs = tebd_results.corrs # num_time_steps x num_sites
 
-    # Calculate the spectral function 
-    corrs = tebd_results.corrs' # num_time_steps x num_sites
+    # Optionally convolve raw time data with decaying exponential?
     if smooth_signal
-        corrs = hcat(decay.(eachcol(corrs))...)
+        # decaying exponential
+        corrs = reverse(hcat(decay.(eachrow(corrs))...)',dims=2)
+        # pad with zeros 
+        corrs = hcat(corrs, zeros(size(corrs))) 
     end
+    # Calculate the spectral function 
     ff, ωs, qs = make_spectral_fcn(corrs, p)
 
     # Zoom in to the relevant bit 
     if isnothing(lims)
-        nstep = size(corrs)[1]
+        nstep = size(corrs)[2]
         lims = (floor(Int, nstep/2) - floor(Int, 0.07*nstep),floor(Int, nstep/2) + floor(Int, 0.07*nstep))
     end
     ff = ff[lims[1]:lims[2],:]
@@ -123,6 +120,10 @@ function plot_spectral_function(tebd_results::TEBDResults, p::Parameters;
     # Plot 
     maxval = maximum(abs.(ff))
     heatmap(qs, ωs, ff, c=:bwr, clims=(-maxval, maxval))
+    N, U, t, ω, g0, g1 = p.N, p.U, p.t, p.ω, p.g0, p.g1
+    title!("N=$N, U=$U, t=$t, ω=$ω, g0=$g0, g1=$g1")
+    xlabel!("Momentum")
+    ylabel!("Frequency")
 end
 
 function plot_spectral_function_slice(tebd_results::TEBDResults, p::Parameters; slice=0)
@@ -130,8 +131,9 @@ function plot_spectral_function_slice(tebd_results::TEBDResults, p::Parameters; 
     
     ff, ωs, qs = make_spectral_fcn(tebd_results.corrs, p)
     ω = findnearest(ωs,slice)
-    scatter(qs, abs.(ff)[ω,:],color="blue")
-    plot!(qs, abs.(ff)[ω,:],color="blue")
+    scatter(qs, ff[ω,:],color="blue", label=nothing)
+    plot!(qs, ff[ω,:],color="blue", label=nothing)
+    title!("Slice of S(q,ω) at ω=$slice")
 end
 
 function compare_to_ED(tebd_results::TEBDResults, p::Parameters)
