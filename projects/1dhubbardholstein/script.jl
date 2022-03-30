@@ -18,7 +18,7 @@ t = 1
 U = 8
 ω = 0.1*t 
 g0 = 0.2*t 
-g1 = 0.15*t 
+g1 = 0*t 
 doping = 0
 max_phonons = 3 
 
