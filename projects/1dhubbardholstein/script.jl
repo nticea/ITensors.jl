@@ -7,20 +7,20 @@ include(joinpath(@__DIR__,"utilities.jl"))
 
 ## SAVING INFO ##
 
-DO_SAVE = false
-INTERIM_SAVE = false
+DO_SAVE = true
+INTERIM_SAVE = true
 
 ## PARAMETERS ## 
 
 # Model 
-N = 8
+N = 80
 t = 1 
 U = 8
 ω = 0.1*t 
-g0 = 0.5*t 
-g1 = 0.1*t 
+g0 = 0.2*t 
+g1 = 0.15*t 
 doping = 0
-max_phonons = 2 
+max_phonons = 3 
 
 # save path
 date_stamp = Dates.format(now(), "HH:MM:SS") 
@@ -28,8 +28,8 @@ param_stamp = "_$(N)N_$(t)t_$(U)U_$(ω)ω_$(g0)g0_$(g1)g1_$(doping)doping_$(max_
 save_path = joinpath(@__DIR__,"outputs",date_stamp*param_stamp*".h5")
 
 # Simulation 
-T = 10
-τ = 0.01
+T = 40
+τ = 0.05
 DMRG_numsweeps = 80
 DMRG_maxdim = 800
 TEBD_maxdim = 800
