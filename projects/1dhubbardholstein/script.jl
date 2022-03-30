@@ -16,11 +16,11 @@ INTERIM_SAVE = true
 N = 80
 t = 1 
 U = 8
-ω = 0.1*t 
-g0 = 0.2*t 
+ω = 0*t 
+g0 = 0*t 
 g1 = 0*t 
 doping = 0
-max_phonons = 3 
+max_phonons = 0 
 
 # save path
 date_stamp = Dates.format(now(), "HH:MM:SS") 

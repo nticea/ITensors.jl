@@ -8,7 +8,7 @@ using ITensors.HDF5
 
 # Load the results in 
 ## NOTE: NEED TO CHANGE UTILS BACK TO TAKE IN PHONON ARGUMENTS TO PARAMS ## 
-loadpath = "/Users/nicole/sherlock/ITensors.jl/projects/1dhubbardholstein/outputs/2022-03-22_10:18:27.h5"
+loadpath = "/Users/nicole/sherlock/ITensors.jl/projects/1dhubbardholstein/outputs/3_PMhonon_an29_nnn_80.h5"
 params, hubbholst, dmrg_results, equilibrium_corr, tebd_results = load_structs(loadpath)
 
 # Visualize things we want
