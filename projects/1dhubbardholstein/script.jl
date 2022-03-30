@@ -19,7 +19,7 @@ U = 8
 ω = 0*t 
 g0 = 0*t 
 g1 = 0*t 
-doping = 0
+doping = 0.05
 max_phonons = 0 
 
 # save path
