@@ -7,20 +7,20 @@ include(joinpath(@__DIR__,"utilities.jl"))
 
 ## SAVING INFO ##
 
-DO_SAVE = true
-INTERIM_SAVE = true
+DO_SAVE = false
+INTERIM_SAVE = false
 
 ## PARAMETERS ## 
 
 # Model 
-N = 80
+N = 8
 t = 1 
 U = 8
 ω = 0.1*t 
 g0 = 0.5*t 
-g1 = 0.1*g0 
+g1 = 0.1*t 
 doping = 0
-max_phonons = 1 
+max_phonons = 2 
 
 # save path
 date_stamp = Dates.format(now(), "HH:MM:SS") 
