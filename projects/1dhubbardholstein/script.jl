@@ -13,26 +13,27 @@ INTERIM_SAVE = true
 ## PARAMETERS ## 
 
 # Model 
-N = 80
+N = 79
 t = 1 
 U = 8
-ω = 0*t 
-g0 = 0*t 
-g1 = 0*t 
-doping = 0.1
-max_phonons = 0 
+ω = 0.5*t 
+g0 = 0.1*t 
+g1 = 0.05*t 
+λ = 0.1*t
+doping = 0
+max_phonons = 3
 
 # save path
 date_stamp = Dates.format(now(), "HH:MM:SS") 
-param_stamp = "_$(N)N_$(t)t_$(U)U_$(ω)ω_$(g0)g0_$(g1)g1_$(doping)doping_$(max_phonons)phonons"
+param_stamp = "_$(N)N_$(t)t_$(U)U_$(ω)ω_$(g0)g0_$(g1)g1_$(λ)λ_$(doping)doping_$(max_phonons)phonons"
 save_path = joinpath(@__DIR__,"outputs",date_stamp*param_stamp*".h5")
 
 # Simulation 
-T = 40
+T = 79
 τ = 0.05
-DMRG_numsweeps = 80
-DMRG_maxdim = 800
-TEBD_maxdim = 800
+DMRG_numsweeps = 20
+DMRG_maxdim = 1000
+TEBD_maxdim = 1000
 TEBD_cutoff = 1E-10
 DMRG_cutoff = 1E-10
 
@@ -44,7 +45,7 @@ A_t = "Cdagup"
 
 # Initialize 
 println("Initializing...")
-params = parameters(N=N, t=t, U=U, ω=ω, g0=g0, g1=g1, doping=doping, 
+params = parameters(N=N, t=t, U=U, ω=ω, g0=g0, g1=g1, λ=λ, doping=doping, 
                     max_phonons=max_phonons,
                     DMRG_numsweeps=DMRG_numsweeps,
                     DMRG_maxdim=DMRG_maxdim, DMRG_cutoff=DMRG_cutoff,

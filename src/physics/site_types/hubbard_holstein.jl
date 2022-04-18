@@ -26,6 +26,10 @@ function ITensors.space(
   qnname_nf="Nf",
   qnname_nfparity="NfParity")
 
+  # if dim > 2 ### NOTE: need to determine the optimal tradeoff between QN conservation and LBO 
+  #   return 4 * dim
+  # end
+
   if conserve_sz && conserve_nf
     return [
       QN((qnname_nf, 0, -1), (qnname_sz, 0)) => 1 * dim 
@@ -53,7 +57,7 @@ function ITensors.space(
       QN(qnname_nfparity, 0, -2) => 1 * dim
     ]
   end
-  return 4
+  return 4 * dim 
 end
 
 function ITensors.val(::ValName{N}, ::SiteType"HubHolst") where {N}
@@ -375,6 +379,15 @@ function ITensors.op(::OpName"Nb", ::SiteType"HubHolst", s::Index)
   Bdag = sparse(Tridiagonal(sqrt.(collect(1:floor(Int,dim(s)/4)-1)),zeros(floor(Int,dim(s)/4)),zeros(floor(Int,dim(s)/4)-1)))
   B = Tridiagonal(zeros(floor(Int,dim(s)/4)-1),zeros(floor(Int,dim(s)/4)),sqrt.(collect(1:floor(Int,dim(s)/4)-1)))
   M = kron(Matrix(I, 4, 4), (Bdag * B))
+  ITensor(M, prime(s), dag(s))
+end
+
+function ITensors.op(::OpName"Nb^2", ::SiteType"HubHolst", s::Index)
+  @assert floor(Int,dim(s)/4) > 1 "Must allow a nonzero number of phonons"
+
+  Bdag = sparse(Tridiagonal(sqrt.(collect(1:floor(Int,dim(s)/4)-1)),zeros(floor(Int,dim(s)/4)),zeros(floor(Int,dim(s)/4)-1)))
+  B = Tridiagonal(zeros(floor(Int,dim(s)/4)-1),zeros(floor(Int,dim(s)/4)),sqrt.(collect(1:floor(Int,dim(s)/4)-1)))
+  M = kron(Matrix(I, 4, 4), (Bdag * B * Bdag * B))
   ITensor(M, prime(s), dag(s))
 end
 

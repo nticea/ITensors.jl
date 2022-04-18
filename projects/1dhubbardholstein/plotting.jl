@@ -81,13 +81,18 @@ function make_spectral_fcn(corrs, p::Parameters; left_offset::Int=0)
                     + imag.(exp.(1im * qs[i] * (p.N-1-p.mid-left_offset)) * f2[:,i])
     end
 
-    return abs.(sqw)/π, ωs, qs 
+    # If working with an even number of sites, must average across midline
+    if iseven(p.N)
+        sqw = (reverse(sqw, dims=2) + sqw) ./2
+    end
+
+    return real.(sqw)/π, ωs, qs 
 end
 
 function decay(u;shape="exponential")
     if shape=="exponential"
         t = collect(1:(length(u)))
-        λ = 0.1/sqrt(length(t)/2)
+        λ = 0.1/sqrt(length(t))
         v = exp.(-λ*t)
     else
         @error "Not implemented"
@@ -98,7 +103,7 @@ end
 function plot_spectral_function(tebd_results::TEBDResults, p::Parameters; 
                                 smooth_signal=true, lims=nothing)
     corrs = tebd_results.corrs # num_time_steps x num_sites
-
+    N, U, t, ω, g0, g1 = p.N, p.U, p.t, p.ω, p.g0, p.g1
     # Optionally convolve raw time data with decaying exponential?
     if smooth_signal
         # decaying exponential
@@ -119,8 +124,7 @@ function plot_spectral_function(tebd_results::TEBDResults, p::Parameters;
 
     # Plot 
     maxval = maximum(abs.(ff))
-    heatmap(qs, ωs, ff, c=:bwr, clims=(-maxval, maxval))
-    N, U, t, ω, g0, g1 = p.N, p.U, p.t, p.ω, p.g0, p.g1
+    heatmap(qs, ωs, abs.(ff), c=:bwr, clims=(-maxval, maxval))
     title!("N=$N, U=$U, t=$t, ω=$ω, g0=$g0, g1=$g1")
     xlabel!("Momentum")
     ylabel!("Frequency")

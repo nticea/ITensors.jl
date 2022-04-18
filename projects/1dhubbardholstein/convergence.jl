@@ -1,0 +1,56 @@
+## IMPORTS ##
+using Pkg
+Pkg.activate(joinpath(@__DIR__,"../.."))
+include(joinpath(@__DIR__,"model.jl"))
+include(joinpath(@__DIR__,"utilities.jl"))
+
+## PARAMETERS ## 
+
+# Model 
+N = 8
+t = 1 
+U = 8
+ω = 1*t 
+g0 = 1*t 
+g1 = 1*t 
+λ = 0*t
+doping = 0
+
+# Simulation 
+T = 40
+τ = 0.05
+DMRG_numsweeps = 20
+DMRG_maxdim = 800
+TEBD_maxdim = 800
+TEBD_cutoff = 1E-10
+DMRG_cutoff = 1E-10
+
+# Number of phonons to try 
+max_phonons_list = [1, 2, 3, 4, 5, 7]
+gs_energy_λ = []
+phonon_density_no_λ = []
+
+for max_phonons in max_phonons_list
+    
+    # Initialize 
+    println("Initializing with ", max_phonons, " phonons...")
+    params = parameters(N=N, t=t, U=U, ω=ω, g0=g0, g1=g1, λ=λ, doping=doping, 
+                        max_phonons=max_phonons,
+                        DMRG_numsweeps=DMRG_numsweeps,
+                        DMRG_maxdim=DMRG_maxdim, DMRG_cutoff=DMRG_cutoff,
+                        T=T, τ=τ, TEBD_cutoff=TEBD_cutoff)
+    hubbholst = HubbardHolsteinModel(params)
+
+    # Run DMRG
+    println("Finding ground state...")
+    dmrg_results = run_DMRG(hubbholst, params, alg="divide_and_conquer")
+    
+    # compensate for offset that comes from having a nonzero λ
+    E = dmrg_results.ground_state_energy
+    nb = compute_phonon_number(dmrg_results.ground_state)
+    ΔE = λ*sum(nb.^2)
+    @show E-ΔE
+
+    push!(gs_energy_λ, E-ΔE)
+    push!(phonon_density_no_λ, nb)
+end
