@@ -21,17 +21,17 @@ g0 = 0.1*t
 g1 = 0.05*t 
 λ = 0.1*t
 doping = 0
-max_phonons = 3
+max_phonons = 4
 
 # save path
-date_stamp = Dates.format(now(), "HH:MM:SS") 
+date_stamp = Dates.format(now(), "y-m-d_HH:MM:SS") 
 param_stamp = "_$(N)N_$(t)t_$(U)U_$(ω)ω_$(g0)g0_$(g1)g1_$(λ)λ_$(doping)doping_$(max_phonons)phonons"
 save_path = joinpath(@__DIR__,"outputs",date_stamp*param_stamp*".h5")
 
 # Simulation 
-T = 79
+T = 80
 τ = 0.05
-DMRG_numsweeps = 20
+DMRG_numsweeps = 80
 DMRG_maxdim = 1000
 TEBD_maxdim = 1000
 TEBD_cutoff = 1E-10

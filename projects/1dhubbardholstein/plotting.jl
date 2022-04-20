@@ -135,8 +135,8 @@ function plot_spectral_function_slice(tebd_results::TEBDResults, p::Parameters; 
     
     ff, ωs, qs = make_spectral_fcn(tebd_results.corrs, p)
     ω = findnearest(ωs,slice)
-    scatter(qs, ff[ω,:],color="blue", label=nothing)
-    plot!(qs, ff[ω,:],color="blue", label=nothing)
+    scatter(qs, abs.(ff[ω,:]),color="blue", label=nothing)
+    plot!(qs, abs.(ff[ω,:]),color="blue", label=nothing)
     title!("Slice of S(q,ω) at ω=$slice")
 end
 
