@@ -65,6 +65,9 @@ end
 
 function plot_correlation_function(tebd_results::TEBDResults)
     heatmap(LinearAlgebra.norm.(tebd_results.corrs'),c=:heat)
+    title!("Correlation function")
+    xlabel!("Site")
+    ylabel!("Time")
 end
 
 function make_spectral_fcn(corrs, p::Parameters; left_offset::Int=0)

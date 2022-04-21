@@ -11,9 +11,9 @@ N = 8
 t = 1 
 U = 8
 ω = 1*t 
-g0 = 1*t 
-g1 = 1*t 
-λ = 0*t
+g0 = 0.5*t 
+g1 = 0.1*t 
+λ = 0.05*t
 doping = 0
 
 # Simulation 
@@ -28,7 +28,10 @@ DMRG_cutoff = 1E-10
 # Number of phonons to try 
 max_phonons_list = [1, 2, 3, 4, 5, 7]
 gs_energy_λ = []
+gs_energy_no_λ = []
+phonon_density_λ = []
 phonon_density_no_λ = []
+ΔEs = []
 
 for max_phonons in max_phonons_list
     
@@ -42,15 +45,37 @@ for max_phonons in max_phonons_list
     hubbholst = HubbardHolsteinModel(params)
 
     # Run DMRG
-    println("Finding ground state...")
+    println("Finding ground state for λ=",λ)
     dmrg_results = run_DMRG(hubbholst, params, alg="divide_and_conquer")
     
     # compensate for offset that comes from having a nonzero λ
     E = dmrg_results.ground_state_energy
     nb = compute_phonon_number(dmrg_results.ground_state)
     ΔE = λ*sum(nb.^2)
-    @show E-ΔE
 
-    push!(gs_energy_λ, E-ΔE)
+    push!(ΔEs, ΔE)
+    push!(gs_energy_λ, E)
+    push!(phonon_density_λ, nb)
+
+    # Initialize 
+    println("Initializing with 0 λ")
+    params = parameters(N=N, t=t, U=U, ω=ω, g0=g0, g1=g1, λ=0, doping=doping, 
+                        max_phonons=max_phonons,
+                        DMRG_numsweeps=DMRG_numsweeps,
+                        DMRG_maxdim=DMRG_maxdim, DMRG_cutoff=DMRG_cutoff,
+                        T=T, τ=τ, TEBD_cutoff=TEBD_cutoff)
+    hubbholst = HubbardHolsteinModel(params)
+
+    # Run DMRG
+    println("Finding ground state for λ=0")
+    dmrg_results = run_DMRG(hubbholst, params, alg="divide_and_conquer")
+    
+    # compensate for offset that comes from having a nonzero λ
+    E = dmrg_results.ground_state_energy
+    nb = compute_phonon_number(dmrg_results.ground_state)
+    ΔE = λ*sum(nb.^2)
+
+    push!(ΔEs, ΔE)
+    push!(gs_energy_no_λ, E)
     push!(phonon_density_no_λ, nb)
 end

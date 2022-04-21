@@ -19,9 +19,9 @@ U = 8
 ω = 0.5*t 
 g0 = 0.1*t 
 g1 = 0.05*t 
-λ = 0.1*t
-doping = 0.1
-max_phonons = 4
+λ = 0*t
+doping = 0.10
+max_phonons = 3
 
 # save path
 date_stamp = Dates.format(now(), "y-m-d_HH:MM:SS") 
