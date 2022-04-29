@@ -245,7 +245,8 @@ function run_DMRG(HH::HubbardHolsteinModel, p::Parameters; alg="divide_and_conqu
     
     ϕ0 = initialize_wavefcn(HH,p)
     @show flux(ϕ0)
-    energy, ϕ = dmrg(HH.mpo, ϕ0, sweeps, alg=alg, LBO=false)
+    energy, ϕ = dmrg(HH.mpo, ϕ0, sweeps, alg=alg, LBO=true, 
+                                    max_LBO_dim=12, min_LBO_dim=4)
     entropy = compute_entropy(ϕ, p.mid)
     return DMRGResults(ϕ, energy, entropy)
 end

@@ -10,9 +10,9 @@ include(joinpath(@__DIR__,"utilities.jl"))
 N = 8
 t = 1 
 U = 8
-ω = 1*t 
-g0 = 0.5*t 
-g1 = 0.1*t 
+ω = 0.2*t 
+g0 = 0.2*t 
+g1 = 0.15*t 
 λ = 0.05*t
 doping = 0
 

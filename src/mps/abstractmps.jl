@@ -1883,6 +1883,26 @@ function product(
   return Aψ
 end
 
+"""
+    normalize!(A::MPS; (lognorm!)=[])
+    normalize!(A::MPO; (lognorm!)=[])
+Change the MPS or MPO `A` in-place such that `norm(A) ≈ 1`. This modifies the data of the tensors within the orthogonality center.
+In practice, this evenly spreads `lognorm(A)` over the tensors within the range of the orthogonality center to avoid numerical overflow in the case of diverging norms.
+See also [`normalize`](@ref), [`norm`](@ref), [`lognorm`](@ref).
+"""
+function normalize!(M::AbstractMPS; (lognorm!)=[])
+  c = ortho_lims(M)
+  lognorm_M = lognorm(M)
+  push!(lognorm!, lognorm_M)
+  z = exp(lognorm_M / length(c))
+  # XXX: this is not modifying `M` in-place.
+  # M[c] ./= z
+  for n in c
+    M[n] ./= z
+  end
+  return M
+end
+
 # ## IN PROGRESS ##
 # function apply_pair(
 #   As::Vector{<:ITensor}, ψ_targ::AbstractMPS, ψ_other::AbstractMPS; move_sites_back::Bool=true, kwargs...
