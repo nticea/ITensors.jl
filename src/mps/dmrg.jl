@@ -321,8 +321,6 @@ function dmrg(PH, psi0::MPS, sweeps::Sweeps; kwargs...)::Tuple{Number,MPS}
         energy::Number = vals[1]
         phi::ITensor = vecs[1]
 
-        @show energy
-
         # If on first half of sweep, ortho centre is on the left
         # On second half of sweep, switch to right 
         ortho = ha == 1 ? "left" : "right"

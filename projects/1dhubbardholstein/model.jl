@@ -1,4 +1,5 @@
 using ITensors
+include("dmrg_lbo.jl")
 
 ## STRUCTS ##
 
@@ -20,6 +21,9 @@ struct Parameters
     DMRG_noise
     DMRG_maxdim
     DMRG_cutoff
+    DMRG_LBO::Bool
+    max_LBO_dim::Int
+    min_LBO_dim::Int
 
     # TEBD parameters
     mid::Int
@@ -27,6 +31,7 @@ struct Parameters
     τ::Real
     TEBD_cutoff
     TEBD_maxdim
+    TEBD_LBO::Bool
 end
 
 struct HubbardHolsteinModel
@@ -41,6 +46,7 @@ struct DMRGResults
     ground_state
     ground_state_energy
     ground_state_entropy 
+    optimized_basis
 end
 
 struct EquilibriumCorrelations
@@ -65,8 +71,9 @@ function parameters(;N::Int, t::Real, U::Real=nothing, ω::Real=nothing,
                     g0::Real=nothing, g1::Real=nothing, λ::Real=nothing, 
                     doping::Real=0, max_phonons::Int=1, init_phonons::Int=0,
                     DMRG_numsweeps::Int=20, DMRG_noise=nothing, 
-                    DMRG_maxdim=nothing, DMRG_cutoff=nothing,
-                    T::Int=25, τ::Real=0.1, TEBD_cutoff=1E-14, TEBD_maxdim=400)
+                    DMRG_maxdim=nothing, DMRG_cutoff=nothing, DMRG_LBO=false,
+                    max_LBO_dim=nothing, min_LBO_dim=4,
+                    T::Int=25, τ::Real=0.1, TEBD_cutoff=1E-14, TEBD_maxdim=400, TEBD_LBO=false, )
     
     if isnothing(U)
         U = 8*t
@@ -99,10 +106,100 @@ function parameters(;N::Int, t::Real, U::Real=nothing, ω::Real=nothing,
     if isnothing(DMRG_cutoff)
         DMRG_cutoff = 1E-10
     end
+    if isnothing(max_LBO_dim)
+        max_LBO_dim = 12
+    end
 
     Parameters(N,t,U,ω,g0,g1,λ,doping,max_phonons,init_phonons,
-                DMRG_numsweeps,DMRG_noise,DMRG_maxdim,DMRG_cutoff,
-                ceil(Int,N/2),T,τ,TEBD_cutoff,TEBD_maxdim)
+                DMRG_numsweeps,DMRG_noise,DMRG_maxdim,DMRG_cutoff,DMRG_LBO,
+                max_LBO_dim,min_LBO_dim,
+                ceil(Int,N/2),T,τ,TEBD_cutoff,TEBD_maxdim,TEBD_LBO)
+end
+
+"""
+Use this function for reconstructing from scratch given site indices 
+"""
+function HubbardHolsteinModel(p::Parameters, sites::Vector{Index{Vector{Pair{QN, Int64}}}})
+    N, t, U, ω, g0, g1, λ, τ, max_phonons = p.N, p.t, p.U, p.ω, p.g0, p.g1, p.λ, p.τ, p.max_phonons
+
+    # make the hamiltonian 
+    ampo = OpSum()
+    for j=1:N-1
+        # ∑_j,σ t * (c^†_jσ c_{j+1}σ + h.c.)
+        ampo += -t,"Cdagup",j,"Cup",j+1
+        ampo += -t,"Cdagup",j+1,"Cup",j
+        ampo += -t,"Cdagdn",j,"Cdn",j+1
+        ampo += -t,"Cdagdn",j+1,"Cdn",j
+        
+        # ∑_j U * n_j↑ n_j↓ 
+        ampo += U,"Nupdn",j,"I",j
+
+        # ∑_j ω * nb_j
+        if max_phonons >= 1
+            ampo += ω,"Nb",j
+
+            # # ∑_j g0 * nf_j (b^†_j + b_j)
+            ampo += g0,"Ntot(Bd+B)",j
+
+            # # ∑_⟨ij⟩ g1 * nf_j (b^†_i + b_i)
+            ampo += g1,"Ntot",j,"Bdag+B",j+1
+            ampo += g1,"Ntot",j+1,"Bdag+B",j
+
+            # quartic term
+            ampo += λ,"Nb^2",j
+        end
+    end
+    # Edge site
+    ampo += U,"Nupdn",N
+    if max_phonons >= 1
+        ampo += ω,"Nb",N
+        ampo += g0,"Ntot(Bd+B)",N
+        ampo += λ,"Nb^2",N
+    end
+    H = MPO(ampo,sites)
+
+    # make the trotter gates 
+    gates = ITensor[]
+    for j=1:N-1
+        s1 = sites[j] # site j
+        s2 = sites[j+1] # site j+1
+
+        hj_twosite = -t*(op("Cdagup*F",s1) * op("Cup",s2)  # t * (c^†_jσ c_{j+1}σ + h.c.)
+                 -op("Cup*F",s1) * op("Cdagup",s2) 
+                 +op("Cdagdn*F",s1) * op("Cdn",s2) 
+                 -op("Cdn*F",s1) * op("Cdagdn",s2)) 
+        if max_phonons >= 1
+            hj_twosite  = hj_twosite
+                + g1*(op("Ntot",s1) * op("Bdag+B",s2))
+                + g1*(op("Bdag+B",s1) * op("Ntot",s2))
+        end
+
+        hj_onesite = U*(op("Nupdn",s1) * op("I",s2))
+        if max_phonons >=1
+            hj_onesite = hj_onesite
+                    + ω*(op("Nb",s1) * op("I",s2))   
+                    + g0*(op("Ntot(Bd+B)",s1) * op("I",s2))
+                    + λ*(op("Nb^2",s1) * op("I",s2))
+        end
+            
+        Gj_twosite = exp(-1.0im * τ/2 * hj_twosite)
+        Gj_onesite = exp(-1.0im * τ/2 * hj_onesite)
+        push!(gates,Gj_twosite)
+        push!(gates,Gj_onesite)
+    end
+    # End site 
+    hn = U*op("Nupdn",sites[N]) 
+    if max_phonons >= 1
+        hn = hn
+        + ω*op("Nb",sites[N]) 
+        + g0*op("Ntot(Bd+B)",sites[N])
+        + λ*op("Nb^2",sites[N]) 
+    end
+    Gn = exp(-1.0im * τ/2 * hn)
+    push!(gates,Gn)
+    append!(gates,reverse(gates))
+
+    HubbardHolsteinModel(sites, H, gates)
 end
 
 function HubbardHolsteinModel(p::Parameters)
@@ -245,10 +342,15 @@ function run_DMRG(HH::HubbardHolsteinModel, p::Parameters; alg="divide_and_conqu
     
     ϕ0 = initialize_wavefcn(HH,p)
     @show flux(ϕ0)
-    energy, ϕ = dmrg(HH.mpo, ϕ0, sweeps, alg=alg, LBO=true, 
-                                    max_LBO_dim=12, min_LBO_dim=4)
+    if p.DMRG_LBO # If performing local basis optimization
+        energy, ϕ, Rs = dmrg_lbo(HH.mpo, ϕ0, sweeps, alg=alg, LBO=true, 
+                                    max_LBO_dim=p.max_LBO_dim, min_LBO_dim=p.min_LBO_dim)
+    else
+        energy, ϕ = dmrg(HH.mpo, ϕ0, sweeps, alg=alg)
+        Rs = nothing
+    end
     entropy = compute_entropy(ϕ, p.mid)
-    return DMRGResults(ϕ, energy, entropy)
+    return DMRGResults(ϕ, energy, entropy, Rs)
 end
 
 ## CORRELATION FUNCTIONS ## 
@@ -427,8 +529,16 @@ function compute_correlations(dmrg_results::DMRGResults,
 
     for step in 1:nsteps
         print(floor(Int,step),"-")
+
+        ## TO DO: IMPLEMENT LBO FOR THE TEBD STEP ## 
+        # 1. Take the gate and contract (on only ONE side) with the optimized basis 
+        # 2. Put ψ in the optimized basis 
+        # 3. Contract ψ and gates in the optimized basis. Will be in the bare basis on the uncontracted side
+        # 4. Optimize the basis of ψ again using the local reduced density matrix 
+        # 5. Update the rotation matrix 
+
         ϕ = apply(HH.gates, ϕ; maxdim=p.TEBD_maxdim, cutoff=p.TEBD_cutoff)
-        ψ = apply(HH.gates, ψ; maxdim=p.TEBD_maxdim, cutoff=p.TEBD_cutoff) # evolve forward
+        ψ = apply(HH.gates, ψ; maxdim=p.TEBD_maxdim, cutoff=p.TEBD_cutoff) 
 
         t += p.τ 
 
