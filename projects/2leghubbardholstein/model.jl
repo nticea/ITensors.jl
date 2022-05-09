@@ -6,12 +6,15 @@ include("dmrg_lbo.jl")
 struct Parameters
     # Model parameters
     N::Int
+    Nx::Int
+    Ny::Int
     t::Real
     U::Real
     ω::Real
     g0::Real
     g1::Real
     λ::Real
+    yperiodic::Bool
     doping::Real
     max_phonons::Int
     init_phonons::Int
@@ -67,8 +70,8 @@ end
 
 ## SETTING UP THE MODEL ## 
 
-function parameters(;N::Int, t::Real, U::Real=nothing, ω::Real=nothing, 
-                    g0::Real=nothing, g1::Real=nothing, λ::Real=nothing, 
+function parameters(;Nx::Int, Ny::Int, t::Real, U::Real=nothing, ω::Real=nothing, 
+                    g0::Real=nothing, g1::Real=nothing, λ::Real=nothing, yperiodic=false,
                     doping::Real=0, max_phonons::Int=1, init_phonons::Int=0,
                     DMRG_numsweeps::Int=20, DMRG_noise=nothing, 
                     DMRG_maxdim=nothing, DMRG_cutoff=nothing, DMRG_LBO=false,
@@ -110,27 +113,33 @@ function parameters(;N::Int, t::Real, U::Real=nothing, ω::Real=nothing,
         max_LBO_dim = 12
     end
 
-    Parameters(N,t,U,ω,g0,g1,λ,doping,max_phonons,init_phonons,
+    Parameters(Nx*Ny,Nx,Ny,t,U,ω,g0,g1,λ,yperiodic,doping,max_phonons,init_phonons,
                 DMRG_numsweeps,DMRG_noise,DMRG_maxdim,DMRG_cutoff,DMRG_LBO,
                 max_LBO_dim,min_LBO_dim,
-                ceil(Int,N/2),T,τ,TEBD_cutoff,TEBD_maxdim,TEBD_LBO)
+                ceil(Int,Nx*Ny/2),T,τ,TEBD_cutoff,TEBD_maxdim,TEBD_LBO)
 end
 
 """
 Use this function for reconstructing from scratch given site indices 
 """
 function HubbardHolsteinModel(p::Parameters, sites::Vector{Index{Vector{Pair{QN, Int64}}}})
-    N, t, U, ω, g0, g1, λ, τ, max_phonons = p.N, p.t, p.U, p.ω, p.g0, p.g1, p.λ, p.τ, p.max_phonons
+    N, Nx, Ny, t, U, ω, g0, g1, λ, τ, max_phonons, yperiodic = p.N, p.Nx, p.Ny, p.t, p.U, p.ω, p.g0, p.g1, p.λ, p.τ, p.max_phonons, p.yperiodic
+
+    lattice = square_lattice(Nx, Ny; yperiodic=yperiodic)
 
     # make the hamiltonian 
     ampo = OpSum()
-    for j=1:N-1
-        # ∑_j,σ t * (c^†_jσ c_{j+1}σ + h.c.)
-        ampo += -t,"Cdagup",j,"Cup",j+1
-        ampo += -t,"Cdagup",j+1,"Cup",j
-        ampo += -t,"Cdagdn",j,"Cdn",j+1
-        ampo += -t,"Cdagdn",j+1,"Cdn",j
-        
+
+    # bond terms
+    for b in lattice
+        ampo .+= -t, "Cdagup", b.s1, "Cup", b.s2
+        ampo .+= -t, "Cdagup", b.s2, "Cup", b.s1
+        ampo .+= -t, "Cdagdn", b.s1, "Cdn", b.s2
+        ampo .+= -t, "Cdagdn", b.s2, "Cdn", b.s1
+    end
+
+    # on-site terms 
+    for j=1:N-1       
         # ∑_j U * n_j↑ n_j↓ 
         ampo += U,"Nupdn",j,"I",j
 
@@ -198,17 +207,50 @@ function HubbardHolsteinModel(p::Parameters, sites::Vector{Index{Vector{Pair{QN,
 
     # make the trotter gates 
     gates = ITensor[]
-    for j=1:N-1
-        s1 = sites[j] # site j
-        s2 = sites[j+1] # site j+1
+    for b in lattice
+        s1_idx = min(b.s1, b.s2)
+        s2_idx = max(b.s1, b.s2)
+        s1 = sites[s1_idx]
+        s2 = sites[s2_idx]
 
-        hj_twosite = make_twosite(s1, s2)
-        hj_onesite = make_onesite(s1)
-            
-        push!(gates,hj_twosite)
+        # Check if we need to apply any swaps (sites are not adjacent) 
+        if abs(s2_idx-s1_idx) > 1
+            # Apply SWAP to get to new configuration
+            SWAP_forward = []
+            s_last = s1_idx
+            for s_next in s1_idx+1:(s2_idx-1)
+                push!(SWAP_forward, op("fSWAP", sites[s_last], sites[s_next]))
+                s_last = s_next
+            end
+            append!(gates, SWAP_forward)
+
+            # Apply gate
+            hj_twosite = make_twosite(s1, s2)
+            push!(gates,hj_twosite)
+
+            # Apply SWAP to get back 
+            SWAP_backward = []
+            for s_next in s_last-1:s1_idx
+                push!(SWAP_backward, op("fSWAP", sites[s_last], sites[s_next]))
+                s_last = s_next
+            end
+            append!(gates, SWAP_backward)
+            #append!(gates, reverse(SWAP_forward))
+
+        else # no need to apply swaps 
+            hj_twosite = make_twosite(s1, s2)
+            push!(gates,hj_twosite)
+        end
+
+    end
+
+    # One-site terms (no swap needed)
+    for j=1:N-1
+        hj_onesite = make_onesite(sites[j])     
         push!(gates,hj_onesite)
     end
-    # End site 
+
+    # End site (no swap needed)
     hn = make_endsite(sites[N])
     push!(gates,hn)
 
@@ -221,7 +263,7 @@ end
 
 function HubbardHolsteinModel(p::Parameters)
     # make the sites 
-    sites = siteinds("HubHolst", p.N; dim=p.max_phonons+1)
+    sites = siteinds("HubHolst",p. N; dim=p.max_phonons+1)
 
     return HubbardHolsteinModel(p, sites)
 end
