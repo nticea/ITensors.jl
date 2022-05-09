@@ -213,8 +213,9 @@ function HubbardHolsteinModel(p::Parameters, sites::Vector{Index{Vector{Pair{QN,
         s1 = sites[s1_idx]
         s2 = sites[s2_idx]
 
+        # DEBUGGING !! ##
         # Check if we need to apply any swaps (sites are not adjacent) 
-        if abs(s2_idx-s1_idx) > 1
+        if 1==0 #abs(s2_idx-s1_idx) > 1
             # Apply SWAP to get to new configuration
             SWAP_forward = []
             s_last = s1_idx
