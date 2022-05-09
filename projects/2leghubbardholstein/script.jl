@@ -29,7 +29,7 @@ param_stamp = "_$(Nx)Nx_$(Ny)Ny_$(t)t_$(U)U_$(ω)ω_$(g0)g0_$(g1)g1_$(λ)λ_$(do
 save_path = joinpath(@__DIR__,"outputs",date_stamp*param_stamp*".h5")
 
 # Simulation 
-DMRG_numsweeps = 80
+DMRG_numsweeps = 40
 DMRG_maxdim = 1000
 DMRG_cutoff = 1E-10
 DMRG_LBO = true
