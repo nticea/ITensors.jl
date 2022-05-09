@@ -12,7 +12,7 @@ INTERIM_SAVE = true
 ## PARAMETERS ## 
 
 # Model 
-Nx = 20
+Nx = 40
 Ny = 2
 t = 1 
 U = 8
@@ -30,7 +30,7 @@ save_path = joinpath(@__DIR__,"outputs",date_stamp*param_stamp*".h5")
 
 # Simulation 
 DMRG_numsweeps = 80
-DMRG_maxdim = 2000
+DMRG_maxdim = 1000
 DMRG_cutoff = 1E-10
 DMRG_LBO = true
 T = 1#80
