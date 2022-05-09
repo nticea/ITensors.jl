@@ -6,14 +6,14 @@ include(joinpath(@__DIR__,"model.jl"))
 include(joinpath(@__DIR__,"utilities.jl"))
 
 ## SAVING INFO ##
-DO_SAVE = true
-INTERIM_SAVE = true
+DO_SAVE = false
+INTERIM_SAVE = false
 
 ## PARAMETERS ## 
 
 # Model 
-Nx = 40
-Ny = 2
+Nx = 4
+Ny = 1
 t = 1 
 U = 8
 ω = 0.5*t 
@@ -29,7 +29,7 @@ param_stamp = "_$(Nx)Nx_$(Ny)Ny_$(t)t_$(U)U_$(ω)ω_$(g0)g0_$(g1)g1_$(λ)λ_$(do
 save_path = joinpath(@__DIR__,"outputs",date_stamp*param_stamp*".h5")
 
 # Simulation 
-DMRG_numsweeps = 40
+DMRG_numsweeps = 20
 DMRG_maxdim = 1000
 DMRG_cutoff = 1E-10
 DMRG_LBO = true
@@ -73,9 +73,9 @@ if DO_SAVE
 end
 
 # Compute correlation functions 
-# println("Computing correlation functions...")
-# tebd_results = compute_correlations(dmrg_results, A_t0, A_t, hubbholst, params,
-#                                     interim_save=INTERIM_SAVE, savepath=save_path)
-# if DO_SAVE
-#     save_structs(tebd_results, save_path)
-# end
+println("Computing correlation functions...")
+tebd_results = compute_correlations(dmrg_results, A_t0, A_t, hubbholst, params,
+                                    interim_save=INTERIM_SAVE, savepath=save_path)
+if DO_SAVE
+    save_structs(tebd_results, save_path)
+end

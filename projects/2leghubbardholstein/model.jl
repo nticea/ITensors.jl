@@ -215,7 +215,7 @@ function HubbardHolsteinModel(p::Parameters, sites::Vector{Index{Vector{Pair{QN,
 
         # DEBUGGING !! ##
         # Check if we need to apply any swaps (sites are not adjacent) 
-        if 1==0 #abs(s2_idx-s1_idx) > 1
+        if abs(s2_idx-s1_idx) > 1
             # Apply SWAP to get to new configuration
             SWAP_forward = []
             s_last = s1_idx
@@ -226,7 +226,7 @@ function HubbardHolsteinModel(p::Parameters, sites::Vector{Index{Vector{Pair{QN,
             append!(gates, SWAP_forward)
 
             # Apply gate
-            hj_twosite = make_twosite(s1, s2)
+            hj_twosite = make_twosite(sites[s2_idx-1], sites[s2_idx])
             push!(gates,hj_twosite)
 
             # Apply SWAP to get back 
